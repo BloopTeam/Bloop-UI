@@ -4,21 +4,35 @@ import {
   Edit3, FileCode, Search, Terminal 
 } from 'lucide-react'
 
-export interface ContextMenuItem {
+// Divider item type
+interface ContextMenuDivider {
+  divider: true
+}
+
+// Regular menu item type
+interface ContextMenuAction {
   label: string
   icon?: React.ReactNode
   shortcut?: string
-  divider?: boolean
+  divider?: false
   disabled?: boolean
   danger?: boolean
-  action?: () => void
+  action?: (() => void) | undefined
 }
+
+// Union type for all menu items
+export type ContextMenuItem = ContextMenuDivider | ContextMenuAction
 
 interface ContextMenuProps {
   x: number
   y: number
   items: ContextMenuItem[]
   onClose: () => void
+}
+
+// Type guard for divider items
+function isDivider(item: ContextMenuItem): item is ContextMenuDivider {
+  return 'divider' in item && item.divider === true
 }
 
 export default function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
@@ -80,7 +94,7 @@ export default function ContextMenu({ x, y, items, onClose }: ContextMenuProps) 
       }}
     >
       {items.map((item, idx) => {
-        if (item.divider) {
+        if (isDivider(item)) {
           return (
             <div
               key={idx}
@@ -149,18 +163,18 @@ export default function ContextMenu({ x, y, items, onClose }: ContextMenuProps) 
 
 // Preset context menu items for file explorer
 export const getFileContextMenuItems = (
-  fileName: string,
+  _fileName: string,
   isFolder: boolean,
   callbacks: {
-    onNewFile?: () => void
-    onNewFolder?: () => void
-    onRename?: () => void
-    onDelete?: () => void
-    onCopy?: () => void
-    onPaste?: () => void
-    onCopyPath?: () => void
-    onOpenInTerminal?: () => void
-    onFindInFolder?: () => void
+    onNewFile?: (() => void) | undefined
+    onNewFolder?: (() => void) | undefined
+    onRename?: (() => void) | undefined
+    onDelete?: (() => void) | undefined
+    onCopy?: (() => void) | undefined
+    onPaste?: (() => void) | undefined
+    onCopyPath?: (() => void) | undefined
+    onOpenInTerminal?: (() => void) | undefined
+    onFindInFolder?: (() => void) | undefined
   }
 ): ContextMenuItem[] => {
   if (isFolder) {

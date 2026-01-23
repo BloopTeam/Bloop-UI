@@ -7,12 +7,14 @@ import './index.css'
 // Security: Disable React DevTools in production
 if (import.meta.env.PROD) {
   const noop = (): void => undefined
-  const DEV_TOOLS = (window as Record<string, unknown>).__REACT_DEVTOOLS_GLOBAL_HOOK__
+  const win = window as unknown as Record<string, unknown>
+  const DEV_TOOLS = win['__REACT_DEVTOOLS_GLOBAL_HOOK__']
   
   if (typeof DEV_TOOLS === 'object' && DEV_TOOLS !== null) {
-    for (const key in DEV_TOOLS) {
-      if (typeof (DEV_TOOLS as Record<string, unknown>)[key] === 'function') {
-        (DEV_TOOLS as Record<string, unknown>)[key] = noop
+    const hooks = DEV_TOOLS as Record<string, unknown>
+    for (const key in hooks) {
+      if (typeof hooks[key] === 'function') {
+        hooks[key] = noop
       }
     }
   }

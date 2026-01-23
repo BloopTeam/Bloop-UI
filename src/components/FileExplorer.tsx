@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Search, GitBranch, Settings, FileText, Folder, FolderOpened } from 'lucide-react'
+import { ChevronDown, ChevronRight, Search, GitBranch, Settings, FileText, Folder, FolderOpen } from 'lucide-react'
 import { useState } from 'react'
 
 export function FileExplorer() {
@@ -58,7 +58,7 @@ export function FileExplorer() {
             {file.type === 'folder' ? (
               <>
                 {file.expanded ? (
-                  <FolderOpened className="w-4 h-4 text-muted-light" />
+                  <FolderOpen className="w-4 h-4 text-muted-light" />
                 ) : (
                   <ChevronRight className="w-3 h-3 text-muted" />
                 )}
