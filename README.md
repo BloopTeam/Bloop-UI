@@ -1,7 +1,7 @@
 # Bloop UI
 
 <p align="center">
-  <img src="public/blooplogo.png" alt="Bloop Logo" width="120" />
+  <img src="public/bloop-header.png" alt="Bloop" width="100%" />
 </p>
 
 <p align="center">
