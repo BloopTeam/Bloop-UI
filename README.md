@@ -12,58 +12,59 @@
   <a href="#features">Features</a> •
   <a href="#why-bloop">Why Bloop</a> •
   <a href="#getting-started">Getting Started</a> •
+  <a href="#security">Security</a> •
   <a href="#the-vision">The Vision</a>
 </p>
 
 ---
 
-## 🚀 What is Bloop?
+## What is Bloop?
 
-Bloop is not just another code editor—it's a complete reimagining of how developers interact with AI to build software. We've designed every pixel, every interaction, and every feature from the ground up to create the most intuitive, powerful, and beautiful coding experience ever made.
+Bloop is not just another code editor—it's a complete reimagining of how developers interact with AI to build software. Every pixel, every interaction, and every feature has been designed from the ground up to create the most intuitive, powerful, and secure coding experience ever made.
 
 This is the interface that developers deserve. This is Bloop.
 
 ---
 
-## ✨ Features
+## Features
 
-### 🎨 Beautiful by Default
-- Stunning dark theme with magenta accents
+### Beautiful by Default
+- Stunning dark theme with signature magenta accents
 - Clean, distraction-free interface
 - Pixel-perfect design at every scale
 
-### 🤖 AI-First Architecture
+### AI-First Architecture
 - Integrated AI assistant panel
 - Context-aware suggestions with `@` mentions
 - Slash commands for instant actions (`/edit`, `/fix`, `/explain`)
-- Multiple AI model support
+- Multiple AI model support with intelligent routing
 
-### ⚡ Built for Speed
+### Built for Speed
 - Lightning-fast navigation
-- Keyboard-first workflow (`Ctrl+K` command palette)
+- Keyboard-first workflow with command palette
 - Resizable panels with persistent layouts
-- Instant file switching
+- Instant file switching with zero lag
 
-### 🛠️ Developer Experience
+### Developer Experience
 - Full-featured file explorer with context menus
 - Integrated terminal with command history
-- Source control integration
+- Source control integration with change tracking
 - Extensions marketplace
-- Real-time toast notifications
-- Draggable tab reordering
+- Real-time notifications
+- Draggable tab management
 
-### 🎯 Thoughtful Details
+### Thoughtful Details
 - Breadcrumb navigation
-- Syntax highlighting
+- Advanced syntax highlighting
 - Line numbers with breakpoint support
 - Modified file indicators
-- Smart search across files
+- Intelligent search across files
 
 ---
 
-## 💡 Why Bloop?
+## Why Bloop?
 
-We believe the tools developers use should be as innovative as the software they build. Current IDEs are bloated, slow, and weren't designed for the AI era.
+The tools developers use should be as innovative as the software they build. Current IDEs are bloated, slow, and weren't designed for the AI era.
 
 **Bloop is different.**
 
@@ -73,11 +74,37 @@ The answer is an interface that:
 - **Gets out of your way** — Clean, minimal, focused
 - **Understands context** — AI that knows your codebase
 - **Feels instant** — No lag, no loading, no waiting
-- **Looks incredible** — Because you spend 8+ hours a day here
+- **Stays secure** — Built with security at its core
 
 ---
 
-## 🎮 Getting Started
+## Security
+
+Security isn't an afterthought—it's foundational to everything we build.
+
+### Content Security
+- Strict Content Security Policy (CSP) enforcement
+- XSS protection with sanitized rendering
+- No unsafe inline scripts or styles
+
+### Input Validation
+- All user inputs sanitized before processing
+- Command injection prevention
+- Path traversal protection
+
+### Data Protection
+- No telemetry without explicit consent
+- Local-first architecture—your code stays yours
+- Encrypted storage for sensitive configurations
+
+### Secure Development
+- Strict TypeScript with no `any` types in production
+- Dependency auditing with automated vulnerability scanning
+- Regular security reviews and updates
+
+---
+
+## Getting Started
 
 ### Prerequisites
 - Node.js 18+
@@ -95,48 +122,81 @@ cd Bloop-UI
 # Install dependencies
 npm install
 
+# Run security audit
+npm audit
+
 # Start the development server
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) and experience the future.
+Open [http://localhost:5173](http://localhost:5173) to begin.
 
 ### Build for Production
 
 ```bash
+# Build with optimizations
 npm run build
+
+# Preview production build
+npm run preview
 ```
 
 ---
 
-## 🌟 The Vision
+## Architecture
+
+```
+src/
+├── components/          # React components
+│   ├── AssistantPanel   # AI assistant interface
+│   ├── EditorArea       # Code editor with tabs
+│   ├── LeftSidebar      # Navigation and file explorer
+│   ├── MenuBar          # Top navigation with dropdowns
+│   ├── TerminalPanel    # Integrated terminal
+│   └── ...
+├── App.tsx              # Root component
+├── main.tsx             # Application entry point
+└── index.css            # Global styles
+```
+
+---
+
+## The Vision
 
 Bloop is here to change the game.
 
 We're not building an incremental improvement. We're building the development environment that will define the next decade of software engineering.
 
+The future of coding is:
+- **Intelligent** — AI that understands, not just autocompletes
+- **Fast** — Milliseconds matter
+- **Secure** — Trust is earned, not assumed
+- **Beautiful** — Because craft matters
+
 **This is just the beginning.**
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
-- **React 18** — Modern UI framework
-- **TypeScript** — Type-safe development
-- **Vite** — Next-generation tooling
-- **Lucide** — Beautiful icons
-
----
-
-## 👥 The Team
-
-Built with ❤️ by the Bloop Team.
+| Technology | Purpose |
+|------------|---------|
+| React 18 | Component architecture |
+| TypeScript | Type-safe development |
+| Vite | Build tooling |
+| Lucide | Iconography |
 
 ---
 
-## 📄 License
+## Contributing
 
-MIT License — Use it, build on it, make it yours.
+We welcome contributions from developers who share our vision. Please read our contributing guidelines and code of conduct before submitting pull requests.
+
+---
+
+## License
+
+MIT License — Build on it, improve it, make it yours.
 
 ---
 
@@ -145,5 +205,5 @@ MIT License — Use it, build on it, make it yours.
 </p>
 
 <p align="center">
-  ⭐ Star this repo to follow our journey
+  Star this repository to follow our journey.
 </p>
