@@ -7,6 +7,7 @@ import {
 // Divider item type
 interface ContextMenuDivider {
   divider: true
+  label?: never
 }
 
 // Regular menu item type
@@ -17,7 +18,7 @@ interface ContextMenuAction {
   divider?: false
   disabled?: boolean
   danger?: boolean
-  action?: (() => void) | undefined
+  action?: () => void
 }
 
 // Union type for all menu items
@@ -179,30 +180,30 @@ export const getFileContextMenuItems = (
 ): ContextMenuItem[] => {
   if (isFolder) {
     return [
-      { label: 'New File', icon: <File size={14} />, action: callbacks.onNewFile },
-      { label: 'New Folder', icon: <FolderPlus size={14} />, action: callbacks.onNewFolder },
-      { divider: true },
-      { label: 'Find in Folder...', icon: <Search size={14} />, action: callbacks.onFindInFolder },
-      { label: 'Open in Terminal', icon: <Terminal size={14} />, action: callbacks.onOpenInTerminal },
-      { divider: true },
-      { label: 'Copy', icon: <Copy size={14} />, shortcut: 'Ctrl+C', action: callbacks.onCopy },
-      { label: 'Paste', icon: <Clipboard size={14} />, shortcut: 'Ctrl+V', action: callbacks.onPaste },
-      { label: 'Copy Path', action: callbacks.onCopyPath },
-      { divider: true },
-      { label: 'Rename', icon: <Edit3 size={14} />, shortcut: 'F2', action: callbacks.onRename },
-      { label: 'Delete', icon: <Trash2 size={14} />, danger: true, action: callbacks.onDelete },
+      { label: 'New File', icon: <File size={14} />, ...(callbacks.onNewFile && { action: callbacks.onNewFile }) },
+      { label: 'New Folder', icon: <FolderPlus size={14} />, ...(callbacks.onNewFolder && { action: callbacks.onNewFolder }) },
+      { divider: true as const },
+      { label: 'Find in Folder...', icon: <Search size={14} />, ...(callbacks.onFindInFolder && { action: callbacks.onFindInFolder }) },
+      { label: 'Open in Terminal', icon: <Terminal size={14} />, ...(callbacks.onOpenInTerminal && { action: callbacks.onOpenInTerminal }) },
+      { divider: true as const },
+      { label: 'Copy', icon: <Copy size={14} />, shortcut: 'Ctrl+C', ...(callbacks.onCopy && { action: callbacks.onCopy }) },
+      { label: 'Paste', icon: <Clipboard size={14} />, shortcut: 'Ctrl+V', ...(callbacks.onPaste && { action: callbacks.onPaste }) },
+      { label: 'Copy Path', ...(callbacks.onCopyPath && { action: callbacks.onCopyPath }) },
+      { divider: true as const },
+      { label: 'Rename', icon: <Edit3 size={14} />, shortcut: 'F2', ...(callbacks.onRename && { action: callbacks.onRename }) },
+      { label: 'Delete', icon: <Trash2 size={14} />, danger: true, ...(callbacks.onDelete && { action: callbacks.onDelete }) },
     ]
   }
 
   return [
-    { label: 'Open', icon: <FileCode size={14} />, action: callbacks.onNewFile },
-    { label: 'Open to the Side', action: callbacks.onNewFile },
-    { divider: true },
-    { label: 'Copy', icon: <Copy size={14} />, shortcut: 'Ctrl+C', action: callbacks.onCopy },
-    { label: 'Copy Path', action: callbacks.onCopyPath },
-    { label: 'Copy Relative Path', action: callbacks.onCopyPath },
-    { divider: true },
-    { label: 'Rename', icon: <Edit3 size={14} />, shortcut: 'F2', action: callbacks.onRename },
-    { label: 'Delete', icon: <Trash2 size={14} />, danger: true, action: callbacks.onDelete },
+    { label: 'Open', icon: <FileCode size={14} />, ...(callbacks.onNewFile && { action: callbacks.onNewFile }) },
+    { label: 'Open to the Side', ...(callbacks.onNewFile && { action: callbacks.onNewFile }) },
+    { divider: true as const },
+    { label: 'Copy', icon: <Copy size={14} />, shortcut: 'Ctrl+C', ...(callbacks.onCopy && { action: callbacks.onCopy }) },
+    { label: 'Copy Path', ...(callbacks.onCopyPath && { action: callbacks.onCopyPath }) },
+    { label: 'Copy Relative Path', ...(callbacks.onCopyPath && { action: callbacks.onCopyPath }) },
+    { divider: true as const },
+    { label: 'Rename', icon: <Edit3 size={14} />, shortcut: 'F2', ...(callbacks.onRename && { action: callbacks.onRename }) },
+    { label: 'Delete', icon: <Trash2 size={14} />, danger: true, ...(callbacks.onDelete && { action: callbacks.onDelete }) },
   ]
 }
