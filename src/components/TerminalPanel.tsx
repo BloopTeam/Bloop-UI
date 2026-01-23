@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { X, Plus, ChevronUp, ChevronDown, Terminal, Trash2 } from 'lucide-react'
+import { X, Terminal, Trash2 } from 'lucide-react'
 
 interface TerminalPanelProps {
   onClose: () => void

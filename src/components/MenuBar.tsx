@@ -142,7 +142,7 @@ const menuData: Record<string, MenuItem[]> = {
   ],
 }
 
-export default function MenuBar({ onToggleTerminal, onShowToast }: MenuBarProps) {
+export default function MenuBar(): JSX.Element {
   const menuItems = ['File', 'Edit', 'View', 'Go', 'Run', 'Terminal', 'Help']
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
   const [activeMenu, setActiveMenu] = useState<string | null>(null)

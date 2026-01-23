@@ -3,7 +3,7 @@ import {
   Search, GitBranch, Settings, Box, Bug, Play,
   ChevronRight, ChevronDown, FileCode, FileText, Folder,
   File, FolderPlus, Trash2, Copy, Edit3, Plus, RefreshCw,
-  Check, X, GitCommit, GitPullRequest, Download, Star
+  Check, GitCommit, Download, Star
 } from 'lucide-react'
 import ContextMenu, { ContextMenuItem } from './ContextMenu'
 import { ToastMessage } from './Toast'
@@ -47,7 +47,7 @@ const EXTENSIONS: Extension[] = [
   { id: '5', name: 'Thunder Client', author: 'Thunder', description: 'REST API client', installed: false, downloads: '12M', logo: '/thunder-logo.png' },
 ]
 
-export default function LeftSidebar({ onCollapse, width = 280, onShowToast }: LeftSidebarProps) {
+export default function LeftSidebar({ width = 280, onShowToast }: LeftSidebarProps) {
   const [activeView, setActiveView] = useState<SidebarView>('explorer')
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['src', 'components']))
   const [selectedFile, setSelectedFile] = useState<string | null>('App.tsx')
@@ -154,10 +154,10 @@ export default function LeftSidebar({ onCollapse, width = 280, onShowToast }: Le
       return [
         { label: 'New File', icon: <File size={14} />, action: () => onShowToast?.('info', `New file in ${name}`) },
         { label: 'New Folder', icon: <FolderPlus size={14} />, action: () => onShowToast?.('info', `New folder in ${name}`) },
-        { divider: true },
+        { divider: true as const },
         { label: 'Copy', icon: <Copy size={14} />, shortcut: 'Ctrl+C', action: () => onShowToast?.('success', `Copied ${name}`) },
         { label: 'Copy Path', action: () => { navigator.clipboard.writeText(`/${name}`); onShowToast?.('success', 'Path copied') } },
-        { divider: true },
+        { divider: true as const },
         { label: 'Rename', icon: <Edit3 size={14} />, shortcut: 'F2', action: () => onShowToast?.('info', `Rename ${name}`) },
         { label: 'Delete', icon: <Trash2 size={14} />, danger: true, action: () => onShowToast?.('warning', `Delete ${name}?`) },
       ]
@@ -166,10 +166,10 @@ export default function LeftSidebar({ onCollapse, width = 280, onShowToast }: Le
     return [
       { label: 'Open', icon: <FileCode size={14} />, action: () => { setSelectedFile(name); onShowToast?.('info', `Opened ${name}`) } },
       { label: 'Open to the Side', action: () => onShowToast?.('info', `Open ${name} in split view`) },
-      { divider: true },
+      { divider: true as const },
       { label: 'Copy', icon: <Copy size={14} />, shortcut: 'Ctrl+C', action: () => onShowToast?.('success', `Copied ${name}`) },
       { label: 'Copy Path', action: () => { navigator.clipboard.writeText(`/${name}`); onShowToast?.('success', 'Path copied') } },
-      { divider: true },
+      { divider: true as const },
       { label: 'Rename', icon: <Edit3 size={14} />, shortcut: 'F2', action: () => onShowToast?.('info', `Rename ${name}`) },
       { label: 'Delete', icon: <Trash2 size={14} />, danger: true, action: () => onShowToast?.('warning', `Delete ${name}?`) },
     ]
@@ -641,7 +641,6 @@ export default function LeftSidebar({ onCollapse, width = 280, onShowToast }: Le
       }}>
         {sidebarItems.map((item, i) => {
           // Use Logo for first item
-          const IconComponent = i === 0 ? null : item.icon
           const isActive = activeView === item.id
           
           return (

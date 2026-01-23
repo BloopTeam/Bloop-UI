@@ -66,10 +66,10 @@ export default function App() {
     
     if (newTabs.length > 0) {
       setTabs(newTabs)
-      if (activeTab === tabId) {
+      if (activeTab === tabId && newTabs[0]) {
         setActiveTab(newTabs[0].id)
       }
-      onShowToast?.('info', `Closed ${tab?.name}`)
+      onShowToast?.('info', `Closed ${tab?.name || 'tab'}`)
     }
   }
 
@@ -96,11 +96,14 @@ export default function App() {
       const draggedIndex = newTabs.findIndex(t => t.id === draggedTab)
       const targetIndex = newTabs.findIndex(t => t.id === targetTabId)
       
-      const [removed] = newTabs.splice(draggedIndex, 1)
-      newTabs.splice(targetIndex, 0, removed)
-      
-      setTabs(newTabs)
-      onShowToast?.('info', 'Tab reordered')
+      if (draggedIndex >= 0 && targetIndex >= 0) {
+        const [removed] = newTabs.splice(draggedIndex, 1)
+        if (removed) {
+          newTabs.splice(targetIndex, 0, removed)
+          setTabs(newTabs)
+          onShowToast?.('info', 'Tab reordered')
+        }
+      }
     }
     setDraggedTab(null)
     setDragOverTab(null)
@@ -297,60 +300,73 @@ export default function App() {
       )}
 
       {/* Editor with line numbers */}
-      <div style={{
-        flex: 1,
-        overflow: 'auto',
-        display: 'flex',
-        fontFamily: '"Fira Code", "Consolas", "Monaco", monospace',
-        fontSize: '14px',
-        lineHeight: '1.7',
-        color: '#cccccc',
-        background: '#0f0f0f'
-      }}>
-        {/* Line Numbers */}
-        <div style={{
-          padding: '24px 16px 24px 24px',
-          textAlign: 'right',
-          color: '#444',
-          userSelect: 'none',
-          borderRight: '1px solid #1a1a1a',
-          background: '#0a0a0a'
-        }}>
-          {currentTab.content.split('\n').map((_, idx) => (
-            <div 
-              key={idx}
-              style={{ 
-                height: '1.7em',
-                cursor: 'pointer',
-                transition: 'color 0.1s'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.color = '#FF00FF'}
-              onMouseLeave={(e) => e.currentTarget.style.color = '#444'}
-              onClick={() => onShowToast?.('info', `Breakpoint toggled at line ${idx + 1}`)}
-            >
-              {idx + 1}
-            </div>
-          ))}
-        </div>
-
-        {/* Code Content */}
+      {currentTab ? (
         <div style={{
           flex: 1,
-          padding: '24px 32px'
+          overflow: 'auto',
+          display: 'flex',
+          fontFamily: '"Fira Code", "Consolas", "Monaco", monospace',
+          fontSize: '14px',
+          lineHeight: '1.7',
+          color: '#cccccc',
+          background: '#0f0f0f'
         }}>
-          <pre style={{ margin: 0, whiteSpace: 'pre-wrap', color: '#cccccc' }}>
-            <code>
-              {currentTab.content.split('\n').map((line, idx) => (
-                <div 
-                  key={idx} 
-                  style={{ height: '1.7em' }}
-                  dangerouslySetInnerHTML={{ __html: highlightSyntax(line) || '&nbsp;' }} 
-                />
-              ))}
-            </code>
-          </pre>
+          {/* Line Numbers */}
+          <div style={{
+            padding: '24px 16px 24px 24px',
+            textAlign: 'right',
+            color: '#444',
+            userSelect: 'none',
+            borderRight: '1px solid #1a1a1a',
+            background: '#0a0a0a'
+          }}>
+            {currentTab.content.split('\n').map((_, idx) => (
+              <div 
+                key={idx}
+                style={{ 
+                  height: '1.7em',
+                  cursor: 'pointer',
+                  transition: 'color 0.1s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.color = '#FF00FF'}
+                onMouseLeave={(e) => e.currentTarget.style.color = '#444'}
+                onClick={() => onShowToast?.('info', `Breakpoint toggled at line ${idx + 1}`)}
+              >
+                {idx + 1}
+              </div>
+            ))}
+          </div>
+
+          {/* Code Content */}
+          <div style={{
+            flex: 1,
+            padding: '24px 32px'
+          }}>
+            <pre style={{ margin: 0, whiteSpace: 'pre-wrap', color: '#cccccc' }}>
+              <code>
+                {currentTab.content.split('\n').map((line, idx) => (
+                  <div 
+                    key={idx} 
+                    style={{ height: '1.7em' }}
+                    dangerouslySetInnerHTML={{ __html: highlightSyntax(line) || '&nbsp;' }} 
+                  />
+                ))}
+              </code>
+            </pre>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div style={{
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#666',
+          fontSize: '14px'
+        }}>
+          No file open
+        </div>
+      )}
     </div>
   )
 }

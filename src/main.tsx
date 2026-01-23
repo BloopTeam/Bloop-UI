@@ -7,8 +7,9 @@ import './index.css'
 // Security: Disable React DevTools in production
 if (import.meta.env.PROD) {
   const noop = (): void => undefined
-  const win = window as unknown as Record<string, unknown>
-  const DEV_TOOLS = win['__REACT_DEVTOOLS_GLOBAL_HOOK__']
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const win = window as any
+  const DEV_TOOLS = win.__REACT_DEVTOOLS_GLOBAL_HOOK__
   
   if (typeof DEV_TOOLS === 'object' && DEV_TOOLS !== null) {
     const hooks = DEV_TOOLS as Record<string, unknown>

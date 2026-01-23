@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { 
   ChevronDown, AtSign, Image as ImageIcon, Mic, Send, 
-  Copy, Check, RefreshCw, X, Paperclip, Code, Sparkles,
-  MessageSquare, Zap, FileCode, FolderOpen, Hash
+  Copy, Check, RefreshCw, Code, Sparkles,
+  MessageSquare, FileCode, FolderOpen, Hash
 } from 'lucide-react'
 import Logo from './Logo'
 
@@ -54,7 +54,7 @@ const SLASH_COMMANDS = [
   { command: '/refactor', description: 'Refactor code' },
 ]
 
-export default function AssistantPanel({ onCollapse, width = 480 }: AssistantPanelProps) {
+export default function AssistantPanel({ width = 480 }: AssistantPanelProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
