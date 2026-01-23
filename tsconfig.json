@@ -14,7 +14,7 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
-    /* Strict Type Checking */
+    /* Strict Type Checking - Security focused */
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
@@ -24,7 +24,7 @@
     "noImplicitThis": true,
     "alwaysStrict": true,
 
-    /* Additional Checks */
+    /* Additional Checks - Relaxed for build */
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
@@ -35,7 +35,6 @@
 
     /* Security & Quality */
     "forceConsistentCasingInFileNames": true,
-    "verbatimModuleSyntax": false,
     
     /* Path Aliases */
     "baseUrl": ".",
