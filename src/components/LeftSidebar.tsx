@@ -8,6 +8,7 @@ import {
 import ContextMenu, { ContextMenuItem } from './ContextMenu'
 import { ToastMessage } from './Toast'
 import Logo from './Logo'
+import GitView from './GitView'
 
 interface LeftSidebarProps {
   onCollapse: () => void
@@ -352,92 +353,9 @@ export default function LeftSidebar({ width = 280, onShowToast }: LeftSidebarPro
 
       case 'git':
         return (
-          <div style={{ padding: '12px' }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '16px'
-            }}>
-              <span style={{ fontSize: '11px', color: '#666', fontWeight: 600, textTransform: 'uppercase' }}>
-                Source Control
-              </span>
-              <div style={{ display: 'flex', gap: '4px' }}>
-                <button
-                  onClick={() => onShowToast?.('success', 'Changes committed!')}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#666',
-                    cursor: 'pointer',
-                    padding: '4px'
-                  }}
-                  title="Commit"
-                >
-                  <Check size={14} />
-                </button>
-                <button
-                  onClick={() => onShowToast?.('info', 'Refreshing...')}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#666',
-                    cursor: 'pointer',
-                    padding: '4px'
-                  }}
-                  title="Refresh"
-                >
-                  <RefreshCw size={14} />
-                </button>
-              </div>
-            </div>
-
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px',
-              background: '#141414',
-              borderRadius: '4px',
-              marginBottom: '12px'
-            }}>
-              <GitBranch size={14} style={{ color: '#FF00FF' }} />
-              <span style={{ fontSize: '12px', color: '#ccc' }}>main</span>
-              <GitCommit size={12} style={{ color: '#666', marginLeft: 'auto' }} />
-              <span style={{ fontSize: '11px', color: '#666' }}>3 ahead</span>
-            </div>
-
-            <div style={{ fontSize: '11px', color: '#666', marginBottom: '8px' }}>
-              Changes ({gitChanges.length})
-            </div>
-
-            {gitChanges.map((change, idx) => (
-              <div
-                key={idx}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '6px 8px',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-              >
-                <span style={{
-                  fontSize: '10px',
-                  fontWeight: 600,
-                  color: change.status === 'added' ? '#22c55e' : (change.status === 'deleted' ? '#ef4444' : '#f59e0b'),
-                  width: '14px'
-                }}>
-                  {change.status === 'added' ? 'A' : (change.status === 'deleted' ? 'D' : 'M')}
-                </span>
-                <FileCode size={14} style={{ color: '#666' }} />
-                <span style={{ fontSize: '12px', color: '#999' }}>{change.file}</span>
-              </div>
-            ))}
-          </div>
+          <GitView 
+            onShowDiff={(file) => onShowToast?.('info', `Showing diff for ${file}`)}
+          />
         )
 
       case 'debug':

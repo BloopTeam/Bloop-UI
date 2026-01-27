@@ -1,33 +1,172 @@
 import { useState, useEffect } from 'react'
-import { Check, X, AlertCircle, Info } from 'lucide-react'
+import { Check, X, AlertCircle, Info, Bell, BellOff, History, Volume2, VolumeX } from 'lucide-react'
+
+export interface ToastAction {
+  label: string
+  action: () => void
+  primary?: boolean
+}
 
 export interface ToastMessage {
   id: string
   type: 'success' | 'error' | 'info' | 'warning'
   message: string
   duration?: number
+  actions?: ToastAction[]
+  group?: string
+  timestamp?: Date
+  sound?: boolean
 }
 
 interface ToastProps {
   toasts: ToastMessage[]
   onRemove: (id: string) => void
+  doNotDisturb?: boolean
+  onToggleDND?: () => void
+  showHistory?: boolean
+  onShowHistory?: () => void
+  soundEnabled?: boolean
+  onToggleSound?: () => void
 }
 
-export default function Toast({ toasts, onRemove }: ToastProps) {
+interface NotificationHistory {
+  id: string
+  type: ToastMessage['type']
+  message: string
+  timestamp: Date
+  read: boolean
+}
+
+export default function Toast({ 
+  toasts, 
+  onRemove, 
+  doNotDisturb = false,
+  onToggleDND,
+  showHistory = false,
+  onShowHistory,
+  soundEnabled = true,
+  onToggleSound
+}: ToastProps) {
+  // Group notifications by type
+  const groupedToasts = toasts.reduce((acc, toast) => {
+    const group = toast.group || 'default'
+    if (!acc[group]) acc[group] = []
+    acc[group].push(toast)
+    return acc
+  }, {} as Record<string, ToastMessage[]>)
+
+  // Play sound for new notifications
+  useEffect(() => {
+    if (soundEnabled && toasts.length > 0 && !doNotDisturb) {
+      // Simple beep sound using Web Audio API
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const oscillator = audioContext.createOscillator()
+      const gainNode = audioContext.createGain()
+      
+      oscillator.connect(gainNode)
+      gainNode.connect(audioContext.destination)
+      
+      oscillator.frequency.value = 800
+      oscillator.type = 'sine'
+      gainNode.gain.setValueAtTime(0.1, audioContext.currentTime)
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1)
+      
+      oscillator.start(audioContext.currentTime)
+      oscillator.stop(audioContext.currentTime + 0.1)
+    }
+  }, [toasts.length, soundEnabled, doNotDisturb])
+
   return (
-    <div style={{
-      position: 'fixed',
-      bottom: '40px',
-      right: '20px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '8px',
-      zIndex: 9999
-    }}>
-      {toasts.map((toast) => (
-        <ToastItem key={toast.id} toast={toast} onRemove={onRemove} />
-      ))}
-    </div>
+    <>
+      {/* Notification Controls */}
+      <div style={{
+        position: 'fixed',
+        bottom: '20px',
+        right: '20px',
+        display: 'flex',
+        gap: '8px',
+        zIndex: 10000
+      }}>
+        {onToggleSound && (
+          <button
+            onClick={onToggleSound}
+            style={{
+              background: '#1a1a1a',
+              border: '1px solid #3e3e42',
+              borderRadius: '6px',
+              padding: '8px',
+              color: soundEnabled ? '#cccccc' : '#666',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            title={soundEnabled ? 'Disable sound' : 'Enable sound'}
+          >
+            {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+          </button>
+        )}
+        {onToggleDND && (
+          <button
+            onClick={onToggleDND}
+            style={{
+              background: doNotDisturb ? '#FF00FF' : '#1a1a1a',
+              border: '1px solid #3e3e42',
+              borderRadius: '6px',
+              padding: '8px',
+              color: doNotDisturb ? '#ffffff' : '#cccccc',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            title={doNotDisturb ? 'Disable Do Not Disturb' : 'Enable Do Not Disturb'}
+          >
+            {doNotDisturb ? <BellOff size={16} /> : <Bell size={16} />}
+          </button>
+        )}
+        {onShowHistory && (
+          <button
+            onClick={onShowHistory}
+            style={{
+              background: '#1a1a1a',
+              border: '1px solid #3e3e42',
+              borderRadius: '6px',
+              padding: '8px',
+              color: '#cccccc',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            title="Notification History"
+          >
+            <History size={16} />
+          </button>
+        )}
+      </div>
+
+      {/* Toast Container */}
+      {!doNotDisturb && (
+        <div style={{
+          position: 'fixed',
+          bottom: '40px',
+          right: '20px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+          zIndex: 9999
+        }}>
+          {Object.entries(groupedToasts).map(([group, groupToasts]) => (
+            <div key={group} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {groupToasts.map((toast) => (
+                <ToastItem key={toast.id} toast={toast} onRemove={onRemove} />
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </>
   )
 }
 
@@ -87,14 +226,53 @@ function ToastItem({ toast, onRemove }: { toast: ToastMessage; onRemove: (id: st
       }}>
         {icons[toast.type]}
       </div>
-      <span style={{
-        flex: 1,
-        color: '#cccccc',
-        fontSize: '13px',
-        lineHeight: 1.4
-      }}>
-        {toast.message}
-      </span>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <span style={{
+          color: '#cccccc',
+          fontSize: '13px',
+          lineHeight: 1.4
+        }}>
+          {toast.message}
+        </span>
+        {toast.actions && toast.actions.length > 0 && (
+          <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+            {toast.actions.map((action, idx) => (
+              <button
+                key={idx}
+                onClick={() => {
+                  action.action()
+                  setIsLeaving(true)
+                  setTimeout(() => onRemove(toast.id), 300)
+                }}
+                style={{
+                  padding: '4px 12px',
+                  background: action.primary ? '#FF00FF' : 'transparent',
+                  border: action.primary ? 'none' : '1px solid #3e3e42',
+                  borderRadius: '4px',
+                  color: action.primary ? '#ffffff' : '#cccccc',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s'
+                }}
+                onMouseEnter={(e) => {
+                  if (!action.primary) {
+                    e.currentTarget.style.borderColor = '#FF00FF'
+                    e.currentTarget.style.color = '#FF00FF'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!action.primary) {
+                    e.currentTarget.style.borderColor = '#3e3e42'
+                    e.currentTarget.style.color = '#cccccc'
+                  }
+                }}
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       <button
         onClick={() => {
           setIsLeaving(true)
@@ -109,7 +287,8 @@ function ToastItem({ toast, onRemove }: { toast: ToastMessage; onRemove: (id: st
           display: 'flex',
           alignItems: 'center',
           borderRadius: '4px',
-          transition: 'all 0.15s'
+          transition: 'all 0.15s',
+          alignSelf: 'flex-start'
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.color = '#ccc'

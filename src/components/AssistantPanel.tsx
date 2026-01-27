@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { 
   ChevronDown, AtSign, Image as ImageIcon, Mic, Send, 
   Copy, Check, RefreshCw, Code, Sparkles,
-  MessageSquare, FileCode, FolderOpen, Hash
+  MessageSquare, FileCode, FolderOpen, Hash, ThumbsUp, ThumbsDown, ChevronUp
 } from 'lucide-react'
 import Logo from './Logo'
 
@@ -18,6 +18,8 @@ interface Message {
   timestamp: Date
   attachments?: string[]
   codeBlocks?: { language: string; code: string }[]
+  reactions?: { emoji: string; count: number }[]
+  collapsed?: boolean
 }
 
 type AgentMode = 'agent' | 'chat' | 'edit'
@@ -70,6 +72,8 @@ export default function AssistantPanel({ width = 480 }: AssistantPanelProps) {
   const [historyIndex, setHistoryIndex] = useState(-1)
   const [contextFilter, setContextFilter] = useState('')
   const [commandFilter, setCommandFilter] = useState('')
+  const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null)
+  const [collapsedMessages, setCollapsedMessages] = useState<Set<string>>(new Set())
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -397,9 +401,16 @@ export default function AssistantPanel({ width = 480 }: AssistantPanelProps) {
             </div>
           )}
 
-          {messages.map((msg) => (
+          {messages.map((msg) => {
+            const isCollapsed = collapsedMessages.has(msg.id)
+            const isLongMessage = msg.content.length > 500
+            const shouldShowCollapse = isLongMessage && msg.role === 'assistant'
+            
+            return (
             <div
               key={msg.id}
+              onMouseEnter={() => setHoveredMessageId(msg.id)}
+              onMouseLeave={() => setHoveredMessageId(null)}
               style={{
                 padding: '12px',
                 background: msg.role === 'assistant' ? '#141414' : 'transparent',
@@ -407,30 +418,87 @@ export default function AssistantPanel({ width = 480 }: AssistantPanelProps) {
                 color: '#cccccc',
                 fontSize: '13px',
                 lineHeight: '1.6',
-                position: 'relative'
+                position: 'relative',
+                transition: 'all 0.2s'
               }}
             >
-              {/* Role indicator */}
+              {/* Role indicator with timestamp */}
               <div style={{
                 fontSize: '11px',
                 color: msg.role === 'assistant' ? '#FF00FF' : '#666',
                 marginBottom: '6px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px'
+                gap: '6px',
+                justifyContent: 'space-between'
               }}>
-                {msg.role === 'assistant' ? (
-                  <>
-                    <Logo size={12} variant="icon" />
-                    <span>Assistant</span>
-                  </>
-                ) : (
-                  <span>You</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {msg.role === 'assistant' ? (
+                    <>
+                      <Logo size={12} variant="icon" />
+                      <span>Assistant</span>
+                    </>
+                  ) : (
+                    <span>You</span>
+                  )}
+                </div>
+                {hoveredMessageId === msg.id && (
+                  <span style={{ fontSize: '10px', color: '#666' }}>
+                    {msg.timestamp.toLocaleTimeString()}
+                  </span>
                 )}
               </div>
               
               {/* Message content */}
-              <div>{renderMessageContent(msg.content)}</div>
+              <div style={{ 
+                maxHeight: isCollapsed ? '200px' : 'none',
+                overflow: isCollapsed ? 'hidden' : 'visible',
+                transition: 'max-height 0.3s'
+              }}>
+                {renderMessageContent(msg.content)}
+              </div>
+              
+              {/* Collapse button for long messages */}
+              {shouldShowCollapse && (
+                <button
+                  onClick={() => {
+                    const newCollapsed = new Set(collapsedMessages)
+                    if (newCollapsed.has(msg.id)) {
+                      newCollapsed.delete(msg.id)
+                    } else {
+                      newCollapsed.add(msg.id)
+                    }
+                    setCollapsedMessages(newCollapsed)
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#666',
+                    cursor: 'pointer',
+                    padding: '4px 8px',
+                    marginTop: '8px',
+                    fontSize: '11px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    transition: 'color 0.15s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.color = '#FF00FF'}
+                  onMouseLeave={(e) => e.currentTarget.style.color = '#666'}
+                >
+                  {isCollapsed ? (
+                    <>
+                      <ChevronDown size={12} />
+                      Show more
+                    </>
+                  ) : (
+                    <>
+                      <ChevronUp size={12} />
+                      Show less
+                    </>
+                  )}
+                </button>
+              )}
               
               {/* Assistant message actions */}
               {msg.role === 'assistant' && (
@@ -439,54 +507,145 @@ export default function AssistantPanel({ width = 480 }: AssistantPanelProps) {
                   gap: '8px',
                   marginTop: '12px',
                   paddingTop: '8px',
-                  borderTop: '1px solid #1a1a1a'
+                  borderTop: '1px solid #1a1a1a',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
                 }}>
-                  <button
-                    onClick={() => copyToClipboard(msg.content, msg.id)}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: copiedId === msg.id ? '#22c55e' : '#555',
-                      cursor: 'pointer',
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      fontSize: '11px',
-                      transition: 'all 0.1s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#1a1a1a'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
-                    {copiedId === msg.id ? <Check size={12} /> : <Copy size={12} />}
-                    {copiedId === msg.id ? 'Copied' : 'Copy'}
-                  </button>
-                  <button
-                    onClick={() => regenerateResponse(msg.id)}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#555',
-                      cursor: 'pointer',
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      fontSize: '11px',
-                      transition: 'all 0.1s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#1a1a1a'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
-                    <RefreshCw size={12} />
-                    Regenerate
-                  </button>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {/* Reactions */}
+                    <button
+                      onClick={() => {
+                        // Toggle reaction
+                        const reactions = msg.reactions || []
+                        const thumbsUpIndex = reactions.findIndex(r => r.emoji === '👍')
+                        if (thumbsUpIndex >= 0) {
+                          reactions[thumbsUpIndex].count--
+                          if (reactions[thumbsUpIndex].count === 0) {
+                            reactions.splice(thumbsUpIndex, 1)
+                          }
+                        } else {
+                          reactions.push({ emoji: '👍', count: 1 })
+                        }
+                        setMessages(prev => prev.map(m => 
+                          m.id === msg.id ? { ...m, reactions } : m
+                        ))
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#555',
+                        cursor: 'pointer',
+                        padding: '4px 8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        borderRadius: '4px',
+                        transition: 'all 0.15s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
+                        e.currentTarget.style.color = '#FF00FF'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'transparent'
+                        e.currentTarget.style.color = '#555'
+                      }}
+                      title="Like"
+                    >
+                      <ThumbsUp size={14} />
+                      {msg.reactions?.find(r => r.emoji === '👍')?.count || 0}
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        const reactions = msg.reactions || []
+                        const thumbsDownIndex = reactions.findIndex(r => r.emoji === '👎')
+                        if (thumbsDownIndex >= 0) {
+                          reactions[thumbsDownIndex].count--
+                          if (reactions[thumbsDownIndex].count === 0) {
+                            reactions.splice(thumbsDownIndex, 1)
+                          }
+                        } else {
+                          reactions.push({ emoji: '👎', count: 1 })
+                        }
+                        setMessages(prev => prev.map(m => 
+                          m.id === msg.id ? { ...m, reactions } : m
+                        ))
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#555',
+                        cursor: 'pointer',
+                        padding: '4px 8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        borderRadius: '4px',
+                        transition: 'all 0.15s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
+                        e.currentTarget.style.color = '#FF00FF'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'transparent'
+                        e.currentTarget.style.color = '#555'
+                      }}
+                      title="Dislike"
+                    >
+                      <ThumbsDown size={14} />
+                      {msg.reactions?.find(r => r.emoji === '👎')?.count || 0}
+                    </button>
+                    
+                    <button
+                      onClick={() => copyToClipboard(msg.content, msg.id)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: copiedId === msg.id ? '#22c55e' : '#555',
+                        cursor: 'pointer',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontSize: '11px',
+                        transition: 'all 0.1s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#1a1a1a'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      {copiedId === msg.id ? <Check size={12} /> : <Copy size={12} />}
+                      {copiedId === msg.id ? 'Copied' : 'Copy'}
+                    </button>
+                    <button
+                      onClick={() => regenerateResponse(msg.id)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#555',
+                        cursor: 'pointer',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontSize: '11px',
+                        transition: 'all 0.1s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#1a1a1a'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <RefreshCw size={12} />
+                      Regenerate
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
-          ))}
+            )
+          })}
           
           {isTyping && (
             <div style={{

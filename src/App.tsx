@@ -7,7 +7,7 @@ import StatusBar from './components/StatusBar'
 import CommandPalette from './components/CommandPalette'
 import BeginnerGuide from './components/BeginnerGuide'
 import ResizeHandle from './components/ResizeHandle'
-import Toast, { ToastMessage } from './components/Toast'
+import Toast, { ToastMessage, ToastAction } from './components/Toast'
 import TerminalPanel from './components/TerminalPanel'
 
 export default function App() {
@@ -16,6 +16,9 @@ export default function App() {
   const [assistantCollapsed, setAssistantCollapsed] = useState(false)
   const [terminalVisible, setTerminalVisible] = useState(false)
   const [toasts, setToasts] = useState<ToastMessage[]>([])
+  const [doNotDisturb, setDoNotDisturb] = useState(false)
+  const [soundEnabled, setSoundEnabled] = useState(true)
+  const [showNotificationHistory, setShowNotificationHistory] = useState(false)
   
   // Load panel widths from localStorage or use defaults
   const [sidebarWidth, setSidebarWidth] = useState(() => {
@@ -34,10 +37,19 @@ export default function App() {
   })
 
   // Toast functions
-  const addToast = useCallback((type: ToastMessage['type'], message: string, duration?: number) => {
+  const addToast = useCallback((type: ToastMessage['type'], message: string, duration?: number, actions?: ToastMessage['actions'], group?: string) => {
     const id = Date.now().toString()
-    setToasts(prev => [...prev, { id, type, message, duration }])
-  }, [])
+    setToasts(prev => [...prev, { 
+      id, 
+      type, 
+      message, 
+      duration, 
+      actions,
+      group,
+      timestamp: new Date(),
+      sound: soundEnabled
+    }])
+  }, [soundEnabled])
 
   const removeToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id))
@@ -177,7 +189,16 @@ export default function App() {
       
       <BeginnerGuide />
       
-      <Toast toasts={toasts} onRemove={removeToast} />
+      <Toast 
+        toasts={toasts} 
+        onRemove={removeToast}
+        doNotDisturb={doNotDisturb}
+        onToggleDND={() => setDoNotDisturb(prev => !prev)}
+        showHistory={showNotificationHistory}
+        onShowHistory={() => setShowNotificationHistory(prev => !prev)}
+        soundEnabled={soundEnabled}
+        onToggleSound={() => setSoundEnabled(prev => !prev)}
+      />
     </div>
   )
 }
