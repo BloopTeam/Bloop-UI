@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Check, X, AlertCircle, Info, Bell, BellOff, History, Volume2, VolumeX } from 'lucide-react'
+import { Check, X, AlertCircle, Info } from 'lucide-react'
 
 export interface ToastAction {
   label: string
@@ -77,96 +77,23 @@ export default function Toast({
   }, [toasts.length, soundEnabled, doNotDisturb])
 
   return (
-    <>
-      {/* Notification Controls */}
-      <div style={{
-        position: 'fixed',
-        bottom: '20px',
-        right: '20px',
-        display: 'flex',
-        gap: '8px',
-        zIndex: 10000
-      }}>
-        {onToggleSound && (
-          <button
-            onClick={onToggleSound}
-            style={{
-              background: '#1a1a1a',
-              border: '1px solid #3e3e42',
-              borderRadius: '6px',
-              padding: '8px',
-              color: soundEnabled ? '#cccccc' : '#666',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-            title={soundEnabled ? 'Disable sound' : 'Enable sound'}
-          >
-            {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-          </button>
-        )}
-        {onToggleDND && (
-          <button
-            onClick={onToggleDND}
-            style={{
-              background: doNotDisturb ? '#FF00FF' : '#1a1a1a',
-              border: '1px solid #3e3e42',
-              borderRadius: '6px',
-              padding: '8px',
-              color: doNotDisturb ? '#ffffff' : '#cccccc',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-            title={doNotDisturb ? 'Disable Do Not Disturb' : 'Enable Do Not Disturb'}
-          >
-            {doNotDisturb ? <BellOff size={16} /> : <Bell size={16} />}
-          </button>
-        )}
-        {onShowHistory && (
-          <button
-            onClick={onShowHistory}
-            style={{
-              background: '#1a1a1a',
-              border: '1px solid #3e3e42',
-              borderRadius: '6px',
-              padding: '8px',
-              color: '#cccccc',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-            title="Notification History"
-          >
-            <History size={16} />
-          </button>
-        )}
-      </div>
-
-      {/* Toast Container */}
-      {!doNotDisturb && (
-        <div style={{
-          position: 'fixed',
-          bottom: '40px',
-          right: '20px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px',
-          zIndex: 9999
-        }}>
-          {Object.entries(groupedToasts).map(([group, groupToasts]) => (
-            <div key={group} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {groupToasts.map((toast) => (
-                <ToastItem key={toast.id} toast={toast} onRemove={onRemove} />
-              ))}
-            </div>
+    <div style={{
+      position: 'fixed',
+      bottom: '40px',
+      right: '20px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '8px',
+      zIndex: 9999
+    }}>
+      {!doNotDisturb && Object.entries(groupedToasts).map(([group, groupToasts]) => (
+        <div key={group} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {groupToasts.map((toast) => (
+            <ToastItem key={toast.id} toast={toast} onRemove={onRemove} />
           ))}
         </div>
-      )}
-    </>
+      ))}
+    </div>
   )
 }
 

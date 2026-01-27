@@ -3,7 +3,7 @@ import {
   Search, GitBranch, Settings, Box, Bug, Play,
   ChevronRight, ChevronDown, FileCode, FileText, Folder,
   File, FolderPlus, Trash2, Copy, Edit3, Plus, RefreshCw,
-  Check, GitCommit, Download, Star
+  Check, GitCommit, Download, Star, ChevronsDownUp, ChevronsUpDown, Eye
 } from 'lucide-react'
 import ContextMenu, { ContextMenuItem } from './ContextMenu'
 import { ToastMessage } from './Toast'
@@ -61,6 +61,9 @@ export default function LeftSidebar({ width = 280, onShowToast }: LeftSidebarPro
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<{ file: string; line: number; text: string }[]>([])
   const [isSearching, setIsSearching] = useState(false)
+  const [hoveredFile, setHoveredFile] = useState<string | null>(null)
+  const [draggedItem, setDraggedItem] = useState<{ name: string; path: string[] } | null>(null)
+  const [breadcrumbs, setBreadcrumbs] = useState<string[]>(['test'])
   
   const [gitChanges] = useState<GitChange[]>([
     { file: 'App.tsx', status: 'modified' },
@@ -78,6 +81,45 @@ export default function LeftSidebar({ width = 280, onShowToast }: LeftSidebarPro
       newExpanded.add(folder)
     }
     setExpandedFolders(newExpanded)
+  }
+
+  const expandAll = () => {
+    const getAllFolders = (items: any[]): string[] => {
+      const folders: string[] = []
+      items.forEach(item => {
+        if (item.type === 'folder') {
+          folders.push(item.name)
+          if (item.children) {
+            folders.push(...getAllFolders(item.children))
+          }
+        }
+      })
+      return folders
+    }
+    setExpandedFolders(new Set(getAllFolders(fileTree)))
+  }
+
+  const collapseAll = () => {
+    setExpandedFolders(new Set())
+  }
+
+  const getFileIcon = (name: string) => {
+    const ext = name.split('.').pop()?.toLowerCase()
+    const iconMap: Record<string, { icon: string; color: string }> = {
+      'tsx': { icon: '⚛️', color: '#3178c6' },
+      'ts': { icon: '📘', color: '#3178c6' },
+      'jsx': { icon: '⚛️', color: '#f7df1e' },
+      'js': { icon: '📜', color: '#f7df1e' },
+      'css': { icon: '🎨', color: '#264de4' },
+      'json': { icon: '📋', color: '#cbcb41' },
+      'md': { icon: '📝', color: '#519aba' },
+      'html': { icon: '🌐', color: '#e34c26' },
+      'py': { icon: '🐍', color: '#3776ab' },
+      'png': { icon: '🖼️', color: '#858585' },
+      'jpg': { icon: '🖼️', color: '#858585' },
+      'svg': { icon: '🎨', color: '#858585' },
+    }
+    return iconMap[ext || ''] || { icon: '📄', color: '#858585' }
   }
 
   const fileTree = [
@@ -176,50 +218,70 @@ export default function LeftSidebar({ width = 280, onShowToast }: LeftSidebarPro
     ]
   }
 
-  const renderTree = (items: any[], depth = 0) => {
+  const renderTree = (items: any[], depth = 0, path: string[] = []) => {
     return items.map((item, idx) => {
       const isExpanded = expandedFolders.has(item.name)
       const isSelected = selectedFile === item.name
       const isFolder = item.type === 'folder'
       const hasChildren = item.children && item.children.length > 0
+      const itemPath = [...path, item.name]
+      const isHovered = hoveredFile === item.name
+      const isDragged = draggedItem?.name === item.name
+      const fileIcon = !isFolder ? getFileIcon(item.name) : null
       
       return (
         <div key={idx}>
           <div
+            draggable={!isFolder}
+            onDragStart={(e) => {
+              setDraggedItem({ name: item.name, path: itemPath })
+              e.dataTransfer.effectAllowed = 'move'
+            }}
+            onDragOver={(e) => {
+              e.preventDefault()
+              if (draggedItem && draggedItem.name !== item.name) {
+                e.currentTarget.style.background = 'rgba(255, 0, 255, 0.1)'
+              }
+            }}
+            onDragLeave={(e) => {
+              e.currentTarget.style.background = isSelected ? 'rgba(255, 0, 255, 0.08)' : 'transparent'
+            }}
+            onDrop={(e) => {
+              e.preventDefault()
+              if (draggedItem && draggedItem.name !== item.name) {
+                onShowToast?.('info', `Moved ${draggedItem.name} to ${item.name}`)
+              }
+              setDraggedItem(null)
+            }}
             onClick={() => {
               if (isFolder) {
                 toggleFolder(item.name)
+                setBreadcrumbs([...breadcrumbs, item.name])
               } else {
                 setSelectedFile(item.name)
               }
             }}
             onContextMenu={(e) => handleContextMenu(e, item)}
+            onMouseEnter={() => {
+              if (!isFolder) setHoveredFile(item.name)
+            }}
+            onMouseLeave={() => setHoveredFile(null)}
             style={{
               padding: '4px 12px',
               paddingLeft: `${16 + depth * 16}px`,
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              cursor: 'pointer',
-              background: isSelected ? 'rgba(255, 0, 255, 0.08)' : 'transparent',
+              cursor: isFolder ? 'pointer' : 'grab',
+              background: isSelected ? 'rgba(255, 0, 255, 0.08)' : (isDragged ? 'rgba(255, 0, 255, 0.05)' : 'transparent'),
               borderLeft: isSelected ? '2px solid #FF00FF' : '2px solid transparent',
               marginLeft: '-2px',
               fontSize: '13px',
               color: isSelected ? '#fff' : '#999',
               transition: 'all 0.1s',
               fontFamily: "'Inter', -apple-system, sans-serif",
-            }}
-            onMouseEnter={(e) => {
-              if (!isSelected) {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.03)'
-                e.currentTarget.style.color = '#ccc'
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isSelected) {
-                e.currentTarget.style.background = 'transparent'
-                e.currentTarget.style.color = '#999'
-              }
+              opacity: isDragged ? 0.5 : 1,
+              position: 'relative'
             }}
           >
             {isFolder ? (
@@ -508,6 +570,20 @@ export default function LeftSidebar({ width = 280, onShowToast }: LeftSidebarPro
               </span>
               <div style={{ display: 'flex', gap: '4px' }}>
                 <button
+                  onClick={expandAll}
+                  style={{ background: 'transparent', border: 'none', color: '#555', cursor: 'pointer', padding: '4px' }}
+                  title="Expand All"
+                >
+                  <ChevronsDownUp size={14} />
+                </button>
+                <button
+                  onClick={collapseAll}
+                  style={{ background: 'transparent', border: 'none', color: '#555', cursor: 'pointer', padding: '4px' }}
+                  title="Collapse All"
+                >
+                  <ChevronsUpDown size={14} />
+                </button>
+                <button
                   onClick={() => onShowToast?.('info', 'New file')}
                   style={{ background: 'transparent', border: 'none', color: '#555', cursor: 'pointer', padding: '4px' }}
                   title="New File"
@@ -524,15 +600,40 @@ export default function LeftSidebar({ width = 280, onShowToast }: LeftSidebarPro
               </div>
             </div>
 
-            <div style={{ padding: '0 16px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: '#FF00FF' }} />
-              <span style={{ fontSize: '13px', fontWeight: 500, color: '#ccc' }}>test</span>
+            {/* Breadcrumb Navigation */}
+            <div style={{ padding: '0 16px 12px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
+              {breadcrumbs.map((crumb, idx) => (
+                <span key={idx} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span
+                    onClick={() => {
+                      setBreadcrumbs(breadcrumbs.slice(0, idx + 1))
+                      onShowToast?.('info', `Navigated to ${crumb}`)
+                    }}
+                    style={{
+                      color: idx === breadcrumbs.length - 1 ? '#FF00FF' : '#666',
+                      cursor: 'pointer',
+                      transition: 'color 0.1s'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (idx !== breadcrumbs.length - 1) e.currentTarget.style.color = '#FF00FF'
+                    }}
+                    onMouseLeave={(e) => {
+                      if (idx !== breadcrumbs.length - 1) e.currentTarget.style.color = '#666'
+                    }}
+                  >
+                    {crumb}
+                  </span>
+                  {idx < breadcrumbs.length - 1 && (
+                    <ChevronRight size={10} style={{ color: '#444' }} />
+                  )}
+                </span>
+              ))}
             </div>
 
             <div style={{ height: '1px', background: 'linear-gradient(90deg, #1a1a1a 0%, #0a0a0a 100%)', margin: '0 16px' }} />
 
             <div style={{ flex: 1, overflow: 'auto', padding: '12px 0' }}>
-              {renderTree(fileTree)}
+              {renderTree(fileTree, 0, breadcrumbs)}
             </div>
 
             <div style={{ padding: '12px 16px', borderTop: '1px solid #151515', display: 'flex', alignItems: 'center', gap: '8px' }}>
