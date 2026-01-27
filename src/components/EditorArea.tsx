@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react'
-import { X, ChevronRight, MoreHorizontal } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { X, ChevronRight, MoreHorizontal, ChevronDown, GitBranch } from 'lucide-react'
 import { ToastMessage } from './Toast'
 
 interface EditorAreaProps {
@@ -57,7 +57,12 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('1')
   const [draggedTab, setDraggedTab] = useState<string | null>(null)
   const [dragOverTab, setDragOverTab] = useState<string | null>(null)
+  const [selectedLines, setSelectedLines] = useState<Set<number>>(new Set())
+  const [foldedLines, setFoldedLines] = useState<Set<number>>(new Set())
+  const [showMinimap, setShowMinimap] = useState(true)
+  const [multiCursors, setMultiCursors] = useState<number[]>([])
   const tabsRef = useRef<HTMLDivElement>(null)
+  const editorRef = useRef<HTMLDivElement>(null)
 
   const closeTab = (tabId: string, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -143,6 +148,84 @@ export default function App() {
     if (name.endsWith('.json')) return '📋'
     if (name.endsWith('.md')) return '📝'
     return '📄'
+  }
+
+  // Multi-cursor support (Ctrl+D)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+        e.preventDefault()
+        const lines = currentTab?.content.split('\n') || []
+        if (lines.length > 0) {
+          const randomLine = Math.floor(Math.random() * lines.length)
+          setMultiCursors(prev => [...prev, randomLine])
+          onShowToast?.('info', `Added cursor at line ${randomLine + 1}`)
+        }
+      }
+      if (e.key === 'Escape') {
+        setMultiCursors([])
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [currentTab, onShowToast])
+
+  const toggleFold = (lineNumber: number) => {
+    const newFolded = new Set(foldedLines)
+    if (newFolded.has(lineNumber)) {
+      newFolded.delete(lineNumber)
+    } else {
+      newFolded.add(lineNumber)
+    }
+    setFoldedLines(newFolded)
+  }
+
+  const isFoldable = (line: string): boolean => {
+    return line.trim().endsWith('{') || line.trim().startsWith('function') || line.trim().startsWith('class')
+  }
+
+  const getGitDiffIndicator = (lineNumber: number): 'added' | 'removed' | 'modified' | null => {
+    // Simulate git diff indicators
+    if (lineNumber === 3 || lineNumber === 6) return 'added'
+    if (lineNumber === 4) return 'removed'
+    if (lineNumber === 5) return 'modified'
+    return null
+  }
+
+  const highlightBrackets = (line: string): string => {
+    const bracketPairs: Record<string, string> = {
+      '(': ')',
+      '[': ']',
+      '{': '}',
+    }
+    
+    let highlighted = line
+    const stack: Array<{ char: string; index: number }> = []
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i]
+      if (bracketPairs[char]) {
+        stack.push({ char, index: i })
+      } else if (Object.values(bracketPairs).includes(char)) {
+        if (stack.length > 0) {
+          const last = stack.pop()
+          if (last) {
+            const pair = Object.entries(bracketPairs).find(([_, v]) => v === char)?.[0]
+            if (pair === last.char) {
+              // Colorize matching pair
+              const before = highlighted.substring(0, last.index)
+              const openChar = highlighted[last.index]
+              const middle = highlighted.substring(last.index + 1, i)
+              const closeChar = highlighted[i]
+              const after = highlighted.substring(i + 1)
+              highlighted = `${before}<span style="color:#FF00FF">${openChar}</span>${middle}<span style="color:#FF00FF">${closeChar}</span>${after}`
+            }
+          }
+        }
+      }
+    }
+    
+    return highlighted
   }
 
   return (
@@ -308,14 +391,40 @@ export default function App() {
           return (
             <div style={{
               flex: 1,
-              overflow: 'auto',
+              overflow: 'hidden',
               display: 'flex',
               fontFamily: '"Fira Code", "Consolas", "Monaco", monospace',
               fontSize: '14px',
               lineHeight: '1.7',
               color: '#cccccc',
-              background: '#0f0f0f'
+              background: '#0f0f0f',
+              position: 'relative'
             }}>
+              {/* Git Diff Indicators */}
+              <div style={{
+                width: '4px',
+                background: '#0a0a0a',
+                position: 'relative'
+              }}>
+                {tab.content.split('\n').map((_, idx) => {
+                  const diffType = getGitDiffIndicator(idx + 1)
+                  if (!diffType) return null
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        position: 'absolute',
+                        top: `${idx * 1.7}em`,
+                        left: 0,
+                        width: '4px',
+                        height: '1.7em',
+                        background: diffType === 'added' ? '#22c55e' : diffType === 'removed' ? '#ef4444' : '#FFA500'
+                      }}
+                    />
+                  )
+                })}
+              </div>
+
               {/* Line Numbers */}
               <div style={{
                 padding: '24px 16px 24px 24px',
@@ -323,42 +432,171 @@ export default function App() {
                 color: '#444',
                 userSelect: 'none',
                 borderRight: '1px solid #1a1a1a',
-                background: '#0a0a0a'
+                background: '#0a0a0a',
+                minWidth: '60px'
               }}>
-                {tab.content.split('\n').map((_, idx) => (
-                  <div 
-                    key={idx}
-                    style={{ 
-                      height: '1.7em',
-                      cursor: 'pointer',
-                      transition: 'color 0.1s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.color = '#FF00FF'}
-                    onMouseLeave={(e) => e.currentTarget.style.color = '#444'}
-                    onClick={() => onShowToast?.('info', `Breakpoint toggled at line ${idx + 1}`)}
-                  >
-                    {idx + 1}
-                  </div>
-                ))}
+                {tab.content.split('\n').map((_, idx) => {
+                  const isSelected = selectedLines.has(idx + 1)
+                  const hasMultiCursor = multiCursors.includes(idx)
+                  return (
+                    <div 
+                      key={idx}
+                      style={{ 
+                        height: '1.7em',
+                        cursor: 'pointer',
+                        transition: 'color 0.1s',
+                        color: isSelected || hasMultiCursor ? '#FF00FF' : '#444',
+                        fontWeight: isSelected ? 600 : 400
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isSelected && !hasMultiCursor) e.currentTarget.style.color = '#FF00FF'
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isSelected && !hasMultiCursor) e.currentTarget.style.color = '#444'
+                      }}
+                      onClick={() => {
+                        const newSelected = new Set(selectedLines)
+                        if (newSelected.has(idx + 1)) {
+                          newSelected.delete(idx + 1)
+                        } else {
+                          newSelected.add(idx + 1)
+                        }
+                        setSelectedLines(newSelected)
+                        onShowToast?.('info', `Selected line ${idx + 1}`)
+                      }}
+                    >
+                      {idx + 1}
+                    </div>
+                  )
+                })}
               </div>
 
               {/* Code Content */}
-              <div style={{
-                flex: 1,
-                padding: '24px 32px'
-              }}>
+              <div 
+                ref={editorRef}
+                style={{
+                  flex: 1,
+                  padding: '24px 32px',
+                  overflow: 'auto',
+                  position: 'relative'
+                }}
+              >
                 <pre style={{ margin: 0, whiteSpace: 'pre-wrap', color: '#cccccc' }}>
                   <code>
-                    {tab.content.split('\n').map((line, idx) => (
-                      <div 
-                        key={idx} 
-                        style={{ height: '1.7em' }}
-                        dangerouslySetInnerHTML={{ __html: highlightSyntax(line) || '&nbsp;' }} 
-                      />
-                    ))}
+                    {tab.content.split('\n').map((line, idx) => {
+                      const isFolded = foldedLines.has(idx + 1)
+                      const isSelected = selectedLines.has(idx + 1)
+                      const hasMultiCursor = multiCursors.includes(idx)
+                      const canFold = isFoldable(line)
+                      
+                      if (isFolded && canFold) {
+                        return (
+                          <div 
+                            key={idx} 
+                            style={{ 
+                              height: '1.7em',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              background: isSelected ? 'rgba(255, 0, 255, 0.1)' : 'transparent'
+                            }}
+                          >
+                            <button
+                              onClick={() => toggleFold(idx + 1)}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#666',
+                                cursor: 'pointer',
+                                padding: '2px',
+                                display: 'flex',
+                                alignItems: 'center'
+                              }}
+                            >
+                              <ChevronRight size={12} />
+                            </button>
+                            <span style={{ color: '#666', fontStyle: 'italic' }}>...</span>
+                          </div>
+                        )
+                      }
+                      
+                      return (
+                        <div 
+                          key={idx} 
+                          style={{ 
+                            height: '1.7em',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            background: isSelected ? 'rgba(255, 0, 255, 0.1)' : 'transparent',
+                            position: 'relative'
+                          }}
+                        >
+                          {canFold && (
+                            <button
+                              onClick={() => toggleFold(idx + 1)}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#666',
+                                cursor: 'pointer',
+                                padding: '2px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                marginLeft: '-20px'
+                              }}
+                            >
+                              <ChevronDown size={12} />
+                            </button>
+                          )}
+                          {hasMultiCursor && (
+                            <div style={{
+                              position: 'absolute',
+                              left: '-4px',
+                              width: '2px',
+                              height: '1.7em',
+                              background: '#FF00FF',
+                              zIndex: 10
+                            }} />
+                          )}
+                          <span 
+                            dangerouslySetInnerHTML={{ 
+                              __html: highlightBrackets(highlightSyntax(line) || '&nbsp;') 
+                            }} 
+                          />
+                        </div>
+                      )
+                    })}
                   </code>
                 </pre>
               </div>
+
+              {/* Minimap */}
+              {showMinimap && tab.content.split('\n').length > 20 && (
+                <div style={{
+                  width: '80px',
+                  background: '#0a0a0a',
+                  borderLeft: '1px solid #1a1a1a',
+                  padding: '8px 4px',
+                  fontSize: '2px',
+                  lineHeight: '1',
+                  opacity: 0.6,
+                  overflow: 'hidden',
+                  position: 'relative'
+                }}>
+                  {tab.content.split('\n').map((line, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        height: '2px',
+                        marginBottom: '1px',
+                        background: line.trim() ? '#333' : 'transparent',
+                        fontSize: '1px'
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )
         })()
