@@ -2,16 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import ErrorBoundary from './components/ErrorBoundary'
-import { getSecurityConfig, validateSecurityConfig } from './config/securityConfig'
 import './index.css'
-
-// Initialize and validate security configuration
-const securityConfig = getSecurityConfig()
-const securityWarnings = validateSecurityConfig(securityConfig)
-
-if (securityWarnings.length > 0 && import.meta.env.DEV) {
-  console.warn('Security configuration warnings:', securityWarnings)
-}
 
 // Security: Disable React DevTools in production
 if (import.meta.env.PROD) {
