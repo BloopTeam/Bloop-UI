@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { X, Terminal, Trash2 } from 'lucide-react'
+import { sanitizeCommand } from '../utils/security'
 
 interface TerminalPanelProps {
   onClose: () => void
@@ -35,7 +36,14 @@ export default function TerminalPanel({ onClose, height, onResize }: TerminalPan
     const trimmedCmd = cmd.trim()
     if (!trimmedCmd) return
 
-    setCommandHistory(prev => [...prev, trimmedCmd])
+    // Sanitize command input to prevent injection attacks
+    const sanitizedCmd = sanitizeCommand(trimmedCmd)
+    if (!sanitizedCmd) {
+      setHistory(prev => [...prev, { type: 'error', content: 'Invalid command: contains dangerous characters' }])
+      return
+    }
+
+    setCommandHistory(prev => [...prev, sanitizedCmd])
     setHistoryIndex(-1)
 
     const newLines: TerminalLine[] = [
