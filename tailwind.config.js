@@ -7,7 +7,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Cursor IDE color scheme
+        // Bloop UI color scheme
         bg: "#1e1e1e",           // Main background
         panel: "#252526",        // Sidebar background
         'panel-hover': "#2a2d2e", // Sidebar hover
