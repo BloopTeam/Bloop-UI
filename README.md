@@ -133,8 +133,6 @@ npm audit
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) to begin.
-
 ### Build for Production
 
 ```bash
