@@ -1,31 +1,33 @@
 #!/bin/bash
 set -e
 
-echo "Starting Rust/WASM build for Vercel..."
+echo "Starting optimized Rust/WASM build..."
 
-# Install Rust if not available
-if ! command -v rustc &> /dev/null; then
-    echo "Installing Rust..."
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
-    export PATH="$HOME/.cargo/bin:$PATH"
-    source "$HOME/.cargo/env" || true
+# Set up paths
+export CARGO_HOME="$HOME/.cargo"
+export RUSTUP_HOME="$HOME/.rustup"
+export PATH="$CARGO_HOME/bin:$PATH"
+
+# Fast Rust installation check (use cached if available)
+if [ ! -f "$CARGO_HOME/bin/cargo" ]; then
+    echo "Installing Rust (cached for future builds)..."
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --no-modify-path
+    export PATH="$CARGO_HOME/bin:$PATH"
+else
+    echo "Using cached Rust installation"
+    export PATH="$CARGO_HOME/bin:$PATH"
 fi
 
-# Verify Rust installation
-rustc --version || (echo "Rust installation failed" && exit 1)
-cargo --version || (echo "Cargo not found" && exit 1)
-
-# Install Trunk if not available
-if ! command -v trunk &> /dev/null; then
-    echo "Installing Trunk..."
-    cargo install trunk --locked
+# Fast Trunk check (use cached if available)
+if [ ! -f "$CARGO_HOME/bin/trunk" ]; then
+    echo "Installing Trunk (cached for future builds)..."
+    cargo install trunk --locked --quiet
+else
+    echo "Using cached Trunk installation"
 fi
 
-# Verify Trunk installation
-trunk --version || (echo "Trunk installation failed" && exit 1)
-
-# Build the project
-echo "Building with Trunk..."
+# Build with optimizations
+echo "Building WASM..."
 trunk build --release
 
-echo "Build completed successfully!"
+echo "Build completed!"
