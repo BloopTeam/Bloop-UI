@@ -18,9 +18,13 @@
 
 ---
 
-## What is Bloop?
+## What is Bloop UI?
 
-Bloop is not just another code editor—it's a complete reimagining of how developers interact with AI to build software. Every pixel, every interaction, and every feature has been designed from the ground up to create the most intuitive, powerful, and secure coding experience ever made.
+**Bloop UI** is the pure UI component library and design system for the Bloop platform. This repository contains **only frontend components**—no backend code, no API integrations, just beautiful, reusable React components.
+
+Every pixel, every interaction, and every component has been designed from the ground up to create the most intuitive, powerful, and secure coding experience ever made.
+
+> **Note:** This is the **UI-only repository**. For the full-stack implementation with backend services, see the [Bloop-Site](https://github.com/BloopTeam/Bloop-Site) repository.
 
 This is the interface that developers deserve. This is Bloop.
 
@@ -33,11 +37,11 @@ This is the interface that developers deserve. This is Bloop.
 - Clean, distraction-free interface
 - Pixel-perfect design at every scale
 
-### AI-First Architecture
-- Integrated AI assistant panel
-- Context-aware suggestions with `@` mentions
-- Slash commands for instant actions (`/edit`, `/fix`, `/explain`)
-- Multiple AI model support with intelligent routing
+### AI-First UI Design
+- Integrated AI assistant panel component
+- Context-aware UI with `@` mentions interface
+- Slash commands UI for instant actions (`/edit`, `/fix`, `/explain`)
+- Multi-model selector UI (backend handles routing)
 
 ### Built for Speed
 - Lightning-fast navigation
@@ -145,19 +149,25 @@ npm run preview
 
 ## Architecture
 
+**Pure UI Components** - No backend dependencies
+
 ```
 src/
-├── components/          # React components
-│   ├── AssistantPanel   # AI assistant interface
+├── components/          # React UI components
+│   ├── AssistantPanel   # AI assistant UI (connects to backend API)
 │   ├── EditorArea       # Code editor with tabs
 │   ├── LeftSidebar      # Navigation and file explorer
 │   ├── MenuBar          # Top navigation with dropdowns
-│   ├── TerminalPanel    # Integrated terminal
+│   ├── TerminalPanel    # Integrated terminal UI
 │   └── ...
-├── App.tsx              # Root component
-├── main.tsx             # Application entry point
-└── index.css            # Global styles
+├── hooks/              # React hooks (UI state management)
+├── utils/              # Frontend utilities (no backend code)
+├── App.tsx             # Root component
+├── main.tsx            # Application entry point
+└── index.css           # Global styles
 ```
+
+> **Backend Integration:** This UI connects to backend APIs but contains **zero backend code**. All backend logic lives in the [Bloop-Site](https://github.com/BloopTeam/Bloop-Site) repository.
 
 ---
 
@@ -188,9 +198,28 @@ The future of coding is:
 
 ---
 
+## Repository Purpose
+
+This repository is **UI-only**. It contains:
+- ✅ React components
+- ✅ UI hooks and utilities
+- ✅ Styling and themes
+- ✅ Frontend state management
+
+It does **NOT** contain:
+- ❌ Backend API code
+- ❌ Server-side logic
+- ❌ Database code
+- ❌ AI model integrations
+
+For full-stack development, see [Bloop-Site](https://github.com/BloopTeam/Bloop-Site).
+
 ## Contributing
 
 We welcome contributions from developers who share our vision. Please read our contributing guidelines and code of conduct before submitting pull requests.
+
+**UI Contributions:** Submit PRs here for component improvements, styling, and UI features.
+**Backend Contributions:** Submit PRs to [Bloop-Site](https://github.com/BloopTeam/Bloop-Site) for API, services, and backend features.
 
 ---
 

@@ -40,6 +40,12 @@ build
 coverage
 .nyc_output
 
+# Rust
+target/
+Cargo.lock
+dist/
+pkg/
+
 # Testing
 *.test.js.snap
 .jest

@@ -2,7 +2,11 @@
 
 ## Overview
 
-Bloop UI is built with a modern, scalable architecture designed for extensibility and performance. The application follows a component-based architecture with clear separation of concerns.
+**Bloop UI** is a **pure frontend component library** built with a modern, scalable architecture designed for extensibility and performance. This repository contains **only UI components**—no backend code, no API implementations, just React components.
+
+The application follows a component-based architecture with clear separation of concerns.
+
+> **Note:** This is the **UI-only repository**. For backend services and full-stack implementation, see the [Bloop-Site](https://github.com/BloopTeam/Bloop-Site) repository.
 
 ## Core Architecture Principles
 
@@ -18,19 +22,22 @@ The application leverages a comprehensive set of custom React hooks:
 - `useThrottle/useDebounce`: Performance optimization for expensive operations
 - `useListNavigation`: Keyboard navigation in lists and menus
 
-### 3. Virtual File System
+### 3. Virtual File System (Frontend Only)
 The `VirtualFileSystem` class provides:
-- In-memory file structure simulation
+- In-memory file structure simulation (UI layer)
 - Undo/redo support for file operations
 - File metadata tracking
 - Search capabilities across files and content
 
-### 4. Code Analysis Engine
-Advanced code analysis capabilities:
-- Syntax tokenization
-- Complexity metrics calculation
-- Code quality suggestions
-- Similarity detection
+> **Note:** This is a frontend simulation. Real file operations connect to backend APIs.
+
+### 4. Code Analysis Engine (Frontend Preview)
+Frontend code analysis capabilities:
+- Syntax tokenization (for display)
+- Complexity metrics calculation (UI preview)
+- Code quality suggestions (UI layer)
+
+> **Note:** Heavy code analysis is handled by the backend. This is for UI preview only.
 
 ### 5. Configuration Management
 Centralized configuration system:
@@ -172,7 +179,7 @@ analyzeCode(code, 'rust') // Add rust analyzer
 ### Integration Tests
 - Component interaction
 - Data flow
-- API communication
+- API communication (mocked - no real backend)
 
 ### E2E Tests
 - User workflows
@@ -198,27 +205,36 @@ npm run preview  # Preview production build
 - GitHub Pages
 - Self-hosted
 
-## Future Architecture Plans
+## Backend Integration
 
-### 1. Plugin System
-- Dynamic plugin loading
-- Sandboxed execution
-- Plugin marketplace
+**This repository is UI-only.** All backend features are implemented in [Bloop-Site](https://github.com/BloopTeam/Bloop-Site):
 
-### 2. Real-time Collaboration
-- WebSocket integration
-- Operational transform
-- Presence awareness
+- **Backend APIs** - RESTful endpoints (Rust + Node.js)
+- **AI Services** - Model integrations and routing
+- **Agent System** - Multi-agent orchestration
+- **Code Analysis** - AST parsing, dependency graphs
+- **Real-time Features** - WebSocket infrastructure
 
-### 3. Cloud Synchronization
-- Cross-device sync
-- Backup & restore
-- Team workspaces
+The UI components in this repository connect to backend APIs but contain **zero backend code**.
 
-### 4. Advanced Code Intelligence
-- LSP integration
-- Type checking
-- Refactoring tools
+## Future UI Plans
+
+### 1. Enhanced Components
+- More reusable component variants
+- Better accessibility features
+- Improved animations and transitions
+
+### 2. UI Plugin System
+- Component extensions
+- Theme customization
+- Layout presets
+
+### 3. Advanced Editor Features
+- Better syntax highlighting
+- Improved code folding
+- Enhanced search UI
+
+> **Backend Features:** All backend development happens in [Bloop-Site](https://github.com/BloopTeam/Bloop-Site)
 
 ## Contributing
 
