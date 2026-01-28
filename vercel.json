@@ -3,8 +3,6 @@
   "outputDirectory": "dist",
   "installCommand": "echo 'Skipping npm install - using Rust build'",
   "framework": null,
-  "crons": [],
-  "functions": {},
   "headers": [
     {
       "source": "/(.*)",
