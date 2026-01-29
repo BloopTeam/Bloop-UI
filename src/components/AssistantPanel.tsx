@@ -2,9 +2,25 @@ import { useState, useRef, useEffect } from 'react'
 import { 
   ChevronDown, AtSign, Image as ImageIcon, Mic, Send, 
   Copy, Check, RefreshCw, Code, Sparkles,
-  MessageSquare, FileCode, FolderOpen, Hash, ThumbsUp, ThumbsDown, ChevronUp
+  MessageSquare, FileCode, FolderOpen, Hash, ThumbsUp, ThumbsDown, ChevronUp, Loader2,
+  Plus, X, Trash2, Settings
 } from 'lucide-react'
 import Logo from './Logo'
+import { apiService, type ModelInfo } from '../services/api'
+import { useLocalStorage } from '../hooks/useLocalStorage'
+
+// Interface for custom user-defined models
+interface CustomModel {
+  id: string
+  name: string
+  provider: string
+  apiEndpoint: string
+  apiKey?: string // Optional - user may use env vars
+  description: string
+  maxContextLength?: number
+  supportsVision?: boolean
+  supportsStreaming?: boolean
+}
 
 interface AssistantPanelProps {
   onCollapse: () => void
@@ -23,13 +39,18 @@ interface Message {
 }
 
 type AgentMode = 'agent' | 'chat' | 'edit'
-type ModelType = 'auto' | 'claude-4' | 'gpt-4' | 'gemini'
+type ModelType = 'auto' | string // Can be any model ID from backend
 
-const MODELS: { id: ModelType; name: string; description: string }[] = [
-  { id: 'auto', name: 'Auto', description: 'Automatically selects the best model' },
-  { id: 'claude-4', name: 'Claude 4', description: 'Best for complex reasoning' },
-  { id: 'gpt-4', name: 'GPT-4', description: 'Great for general tasks' },
-  { id: 'gemini', name: 'Gemini Pro', description: 'Fast and efficient' },
+// Default models if backend is unavailable
+const DEFAULT_MODELS: { id: ModelType; name: string; description: string; provider: string }[] = [
+  { id: 'auto', name: 'Auto', description: 'Automatically selects the best model', provider: 'auto' },
+  { id: 'kimi-k2.5', name: 'Kimi K2.5', description: '1T param multimodal (256K context)', provider: 'moonshot' },
+  { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', description: 'High quality, safety-focused', provider: 'anthropic' },
+  { id: 'gpt-4-turbo-preview', name: 'GPT-4 Turbo', description: 'Versatile, well-tested', provider: 'openai' },
+  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: 'Massive 1M context', provider: 'google' },
+  { id: 'deepseek-chat', name: 'DeepSeek', description: 'Code-focused, ultra-fast', provider: 'deepseek' },
+  { id: 'mistral-large-latest', name: 'Mistral Large', description: 'Creativity + code balance', provider: 'mistral' },
+  { id: 'grok-beta', name: 'Grok (xAI)', description: 'Fast, creative', provider: 'xai' },
 ]
 
 const AGENT_MODES: { id: AgentMode; name: string; icon: React.ReactNode; description: string }[] = [
@@ -62,6 +83,9 @@ export default function AssistantPanel({ width = 480 }: AssistantPanelProps) {
   const [isTyping, setIsTyping] = useState(false)
   const [agentMode, setAgentMode] = useState<AgentMode>('agent')
   const [model, setModel] = useState<ModelType>('auto')
+  const [availableModels, setAvailableModels] = useState<ModelInfo[]>([])
+  const [modelsLoading, setModelsLoading] = useState(true)
+  const [backendConnected, setBackendConnected] = useState(false)
   const [showAgentDropdown, setShowAgentDropdown] = useState(false)
   const [showModelDropdown, setShowModelDropdown] = useState(false)
   const [showContextMenu, setShowContextMenu] = useState(false)
@@ -75,9 +99,51 @@ export default function AssistantPanel({ width = 480 }: AssistantPanelProps) {
   const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null)
   const [collapsedMessages, setCollapsedMessages] = useState<Set<string>>(new Set())
   
+  // Custom models state (persisted to localStorage)
+  const [customModels, setCustomModels] = useLocalStorage<CustomModel[]>('bloop-custom-models', [])
+  const [showAddModelModal, setShowAddModelModal] = useState(false)
+  const [editingModel, setEditingModel] = useState<CustomModel | null>(null)
+  const [newModelForm, setNewModelForm] = useState<Partial<CustomModel>>({
+    name: '',
+    provider: '',
+    apiEndpoint: '',
+    apiKey: '',
+    description: '',
+    maxContextLength: 8192,
+    supportsVision: false,
+    supportsStreaming: true
+  })
+  
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Fetch available models from backend
+  useEffect(() => {
+    const fetchModels = async () => {
+      try {
+        setModelsLoading(true)
+        const response = await apiService.fetchModels()
+        if (response.models.length > 0) {
+          setAvailableModels(response.models)
+          setBackendConnected(true)
+        } else {
+          // Backend returned empty - mark as not connected
+          setAvailableModels([])
+          setBackendConnected(false)
+        }
+      } catch (error) {
+        console.error('Failed to fetch models:', error)
+        // On error, set empty array - modelsList will use DEFAULT_MODELS
+        setAvailableModels([])
+        setBackendConnected(false)
+      } finally {
+        setModelsLoading(false)
+      }
+    }
+
+    fetchModels()
+  }, [])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -107,7 +173,7 @@ export default function AssistantPanel({ width = 480 }: AssistantPanelProps) {
   }, [input])
 
   const generateResponse = (userInput: string): string => {
-    // Simulate different responses based on input
+    // Fallback response if backend is unavailable
     if (userInput.toLowerCase().includes('hello') || userInput.toLowerCase().includes('hi')) {
       return "Hello! I'm your AI coding assistant. How can I help you today? You can ask me to:\n\n• Explain code\n• Fix bugs\n• Write new features\n• Optimize performance\n• Generate tests"
     }
@@ -121,17 +187,19 @@ export default function AssistantPanel({ width = 480 }: AssistantPanelProps) {
     return "I understand. Let me analyze that and provide a helpful response.\n\n```typescript\n// Here's a code example\nconst result = await processRequest(input);\nconsole.log(result);\n```\n\nWould you like me to explain this further?"
   }
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim() || isTyping) return
 
+    const userInput = input.trim()
+    
     // Add to command history
-    setCommandHistory(prev => [...prev, input])
+    setCommandHistory(prev => [...prev, userInput])
     setHistoryIndex(-1)
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: input,
+      content: userInput,
       timestamp: new Date()
     }
 
@@ -141,19 +209,60 @@ export default function AssistantPanel({ width = 480 }: AssistantPanelProps) {
     setShowContextMenu(false)
     setShowCommandMenu(false)
 
-    // Simulate typing delay
-    const typingDelay = 800 + Math.random() * 1200
-    
-    setTimeout(() => {
+    try {
+      // Try to use backend API if available
+      if (backendConnected) {
+        const response = await apiService.sendChatMessage({
+          messages: [
+            ...messages.map(m => ({
+              role: m.role as 'user' | 'assistant' | 'system',
+              content: m.content
+            })),
+            {
+              role: 'user',
+              content: userInput
+            }
+          ],
+          model: model === 'auto' ? undefined : model,
+          temperature: 0.7,
+          maxTokens: 4000
+        })
+
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: response.content || 'No response received',
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, assistantMessage])
+      } else {
+        // Fallback to simulated response
+        const typingDelay = 800 + Math.random() * 1200
+        setTimeout(() => {
+          const assistantMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: generateResponse(userInput),
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, assistantMessage])
+          setIsTyping(false)
+        }, typingDelay)
+        return
+      }
+    } catch (error) {
+      console.error('Error sending message:', error)
+      // Fallback to simulated response on error
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: generateResponse(input),
+        content: `I'm having trouble connecting to the backend. ${generateResponse(userInput)}`,
         timestamp: new Date()
       }
       setMessages(prev => [...prev, assistantMessage])
+    } finally {
       setIsTyping(false)
-    }, typingDelay)
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -252,11 +361,137 @@ export default function AssistantPanel({ width = 480 }: AssistantPanelProps) {
 
   const filteredCommands = SLASH_COMMANDS.filter(cmd =>
     cmd.command.toLowerCase().includes(commandFilter.toLowerCase()) ||
-    cmd.description.toLowerCase().includes(commandFilter.toLowerCase())
+    cmd.description.toLowerCase().includes(cmd.description.toLowerCase())
   )
 
   const currentAgent = AGENT_MODES.find(m => m.id === agentMode)!
-  const currentModel = MODELS.find(m => m.id === model)!
+  
+  // Custom model management functions
+  const handleAddCustomModel = () => {
+    if (!newModelForm.name || !newModelForm.provider || !newModelForm.apiEndpoint) {
+      return // Basic validation
+    }
+    
+    const modelId = `custom-${Date.now()}-${newModelForm.name.toLowerCase().replace(/\s+/g, '-')}`
+    const newModel: CustomModel = {
+      id: modelId,
+      name: newModelForm.name,
+      provider: newModelForm.provider,
+      apiEndpoint: newModelForm.apiEndpoint,
+      apiKey: newModelForm.apiKey,
+      description: newModelForm.description || `Custom ${newModelForm.provider} model`,
+      maxContextLength: newModelForm.maxContextLength || 8192,
+      supportsVision: newModelForm.supportsVision || false,
+      supportsStreaming: newModelForm.supportsStreaming ?? true
+    }
+    
+    if (editingModel) {
+      // Update existing model
+      setCustomModels(prev => prev.map(m => m.id === editingModel.id ? { ...newModel, id: editingModel.id } : m))
+    } else {
+      // Add new model
+      setCustomModels(prev => [...prev, newModel])
+    }
+    
+    // Reset form and close modal
+    setNewModelForm({
+      name: '',
+      provider: '',
+      apiEndpoint: '',
+      apiKey: '',
+      description: '',
+      maxContextLength: 8192,
+      supportsVision: false,
+      supportsStreaming: true
+    })
+    setEditingModel(null)
+    setShowAddModelModal(false)
+  }
+  
+  const handleEditCustomModel = (model: CustomModel) => {
+    setEditingModel(model)
+    setNewModelForm({
+      name: model.name,
+      provider: model.provider,
+      apiEndpoint: model.apiEndpoint,
+      apiKey: model.apiKey || '',
+      description: model.description,
+      maxContextLength: model.maxContextLength,
+      supportsVision: model.supportsVision,
+      supportsStreaming: model.supportsStreaming
+    })
+    setShowAddModelModal(true)
+  }
+  
+  const handleDeleteCustomModel = (modelId: string) => {
+    setCustomModels(prev => prev.filter(m => m.id !== modelId))
+    // If the deleted model was selected, switch to auto
+    if (model === modelId) {
+      setModel('auto')
+    }
+  }
+  
+  // Get current model info from available models, custom models, or defaults
+  const customModelInfo = customModels.find(m => m.id === model)
+  const currentModelInfo = customModelInfo || availableModels.find(m => m.model === model) || 
+    DEFAULT_MODELS.find(m => m.id === model)
+  const currentModel = customModelInfo ? {
+    id: customModelInfo.id,
+    name: customModelInfo.name,
+    description: customModelInfo.description,
+    provider: customModelInfo.provider,
+    isCustom: true
+  } : currentModelInfo ? {
+    id: currentModelInfo.model || currentModelInfo.id,
+    name: currentModelInfo.provider === 'auto' ? 'Auto' : 
+          (currentModelInfo.provider?.charAt(0).toUpperCase() + currentModelInfo.provider.slice(1)) || DEFAULT_MODELS.find(m => m.id === model)?.name || 'Auto',
+    description: currentModelInfo.available 
+      ? `${currentModelInfo.capabilities?.max_context_length?.toLocaleString() || 0} context, ${currentModelInfo.capabilities?.speed || 'medium'} speed`
+      : DEFAULT_MODELS.find(m => m.id === model)?.description || 'Not configured',
+    provider: currentModelInfo.provider || 'auto',
+    isCustom: false
+  } : { id: 'auto', name: 'Auto', description: 'Auto-select best model', provider: 'auto', isCustom: false }
+  
+  // Build comprehensive models list - always show all models
+  // Start with all default models, then update with backend data if available
+  const modelsList = DEFAULT_MODELS.map(defaultModel => {
+    // Check if this model is available from backend
+    const backendModel = availableModels.find(m => m.model === defaultModel.id)
+    
+    if (backendModel && backendModel.available) {
+      // Use backend data for available models
+      return {
+        id: backendModel.model,
+        name: backendModel.provider.charAt(0).toUpperCase() + backendModel.provider.slice(1),
+        description: `${backendModel.capabilities.max_context_length.toLocaleString()} context${backendModel.capabilities.supports_vision ? ', vision' : ''}`,
+        provider: backendModel.provider,
+        available: true,
+        isCustom: false
+      }
+    } else {
+      // Use default model data (either not in backend or not available)
+      return {
+        id: defaultModel.id,
+        name: defaultModel.name,
+        description: defaultModel.description,
+        provider: defaultModel.provider,
+        available: backendModel?.available || false,
+        isCustom: false
+      }
+    }
+  })
+  
+  // Add custom models to the list
+  const customModelsList = customModels.map(cm => ({
+    id: cm.id,
+    name: cm.name,
+    description: cm.description,
+    provider: cm.provider,
+    available: true, // Custom models are always available
+    isCustom: true,
+    apiEndpoint: cm.apiEndpoint,
+    maxContextLength: cm.maxContextLength
+  }))
 
   const renderMessageContent = (content: string) => {
     // Simple markdown-like rendering
@@ -355,6 +590,357 @@ export default function AssistantPanel({ width = 480 }: AssistantPanelProps) {
         style={{ display: 'none' }}
         onChange={handleFileSelect}
       />
+
+      {/* Add Custom Model Modal */}
+      {showAddModelModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          backdropFilter: 'blur(4px)'
+        }} onClick={() => setShowAddModelModal(false)}>
+          <div 
+            style={{
+              background: '#1a1a1a',
+              border: '1px solid #2a2a2a',
+              borderRadius: '12px',
+              padding: '24px',
+              width: '100%',
+              maxWidth: '480px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 24px 48px rgba(0,0,0,0.5)'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '20px'
+            }}>
+              <h2 style={{
+                margin: 0,
+                fontSize: '16px',
+                fontWeight: 600,
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <Settings size={18} style={{ color: '#FF00FF' }} />
+                {editingModel ? 'Edit Custom Model' : 'Add Custom Model'}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowAddModelModal(false)
+                  setEditingModel(null)
+                  setNewModelForm({
+                    name: '',
+                    provider: '',
+                    apiEndpoint: '',
+                    apiKey: '',
+                    description: '',
+                    maxContextLength: 8192,
+                    supportsVision: false,
+                    supportsStreaming: true
+                  })
+                }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#666',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  display: 'flex'
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            {/* Form Fields */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Model Name */}
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: '#888', marginBottom: '6px' }}>
+                  Model Name *
+                </label>
+                <input
+                  type="text"
+                  value={newModelForm.name || ''}
+                  onChange={e => setNewModelForm(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="e.g., My Custom GPT"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #2a2a2a',
+                    borderRadius: '6px',
+                    color: '#fff',
+                    fontSize: '13px',
+                    outline: 'none',
+                    transition: 'border-color 0.15s'
+                  }}
+                  onFocus={e => e.target.style.borderColor = '#FF00FF'}
+                  onBlur={e => e.target.style.borderColor = '#2a2a2a'}
+                />
+              </div>
+              
+              {/* Provider */}
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: '#888', marginBottom: '6px' }}>
+                  Provider Name *
+                </label>
+                <input
+                  type="text"
+                  value={newModelForm.provider || ''}
+                  onChange={e => setNewModelForm(prev => ({ ...prev, provider: e.target.value }))}
+                  placeholder="e.g., OpenAI, Anthropic, Custom"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #2a2a2a',
+                    borderRadius: '6px',
+                    color: '#fff',
+                    fontSize: '13px',
+                    outline: 'none',
+                    transition: 'border-color 0.15s'
+                  }}
+                  onFocus={e => e.target.style.borderColor = '#FF00FF'}
+                  onBlur={e => e.target.style.borderColor = '#2a2a2a'}
+                />
+              </div>
+              
+              {/* API Endpoint */}
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: '#888', marginBottom: '6px' }}>
+                  API Endpoint *
+                </label>
+                <input
+                  type="text"
+                  value={newModelForm.apiEndpoint || ''}
+                  onChange={e => setNewModelForm(prev => ({ ...prev, apiEndpoint: e.target.value }))}
+                  placeholder="e.g., https://api.example.com/v1/chat/completions"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #2a2a2a',
+                    borderRadius: '6px',
+                    color: '#fff',
+                    fontSize: '13px',
+                    fontFamily: 'monospace',
+                    outline: 'none',
+                    transition: 'border-color 0.15s'
+                  }}
+                  onFocus={e => e.target.style.borderColor = '#FF00FF'}
+                  onBlur={e => e.target.style.borderColor = '#2a2a2a'}
+                />
+              </div>
+              
+              {/* API Key (Optional) */}
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: '#888', marginBottom: '6px' }}>
+                  API Key <span style={{ color: '#555' }}>(Optional - can use env vars)</span>
+                </label>
+                <input
+                  type="password"
+                  value={newModelForm.apiKey || ''}
+                  onChange={e => setNewModelForm(prev => ({ ...prev, apiKey: e.target.value }))}
+                  placeholder="sk-..."
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #2a2a2a',
+                    borderRadius: '6px',
+                    color: '#fff',
+                    fontSize: '13px',
+                    fontFamily: 'monospace',
+                    outline: 'none',
+                    transition: 'border-color 0.15s'
+                  }}
+                  onFocus={e => e.target.style.borderColor = '#FF00FF'}
+                  onBlur={e => e.target.style.borderColor = '#2a2a2a'}
+                />
+              </div>
+              
+              {/* Description */}
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: '#888', marginBottom: '6px' }}>
+                  Description
+                </label>
+                <input
+                  type="text"
+                  value={newModelForm.description || ''}
+                  onChange={e => setNewModelForm(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="e.g., Fast inference, great for coding"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #2a2a2a',
+                    borderRadius: '6px',
+                    color: '#fff',
+                    fontSize: '13px',
+                    outline: 'none',
+                    transition: 'border-color 0.15s'
+                  }}
+                  onFocus={e => e.target.style.borderColor = '#FF00FF'}
+                  onBlur={e => e.target.style.borderColor = '#2a2a2a'}
+                />
+              </div>
+              
+              {/* Max Context Length */}
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: '#888', marginBottom: '6px' }}>
+                  Max Context Length
+                </label>
+                <input
+                  type="number"
+                  value={newModelForm.maxContextLength || 8192}
+                  onChange={e => setNewModelForm(prev => ({ ...prev, maxContextLength: parseInt(e.target.value) || 8192 }))}
+                  placeholder="8192"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #2a2a2a',
+                    borderRadius: '6px',
+                    color: '#fff',
+                    fontSize: '13px',
+                    outline: 'none',
+                    transition: 'border-color 0.15s'
+                  }}
+                  onFocus={e => e.target.style.borderColor = '#FF00FF'}
+                  onBlur={e => e.target.style.borderColor = '#2a2a2a'}
+                />
+              </div>
+              
+              {/* Checkboxes */}
+              <div style={{ display: 'flex', gap: '24px' }}>
+                <label style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px', 
+                  fontSize: '12px', 
+                  color: '#888',
+                  cursor: 'pointer'
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={newModelForm.supportsVision || false}
+                    onChange={e => setNewModelForm(prev => ({ ...prev, supportsVision: e.target.checked }))}
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      accentColor: '#FF00FF',
+                      cursor: 'pointer'
+                    }}
+                  />
+                  Supports Vision
+                </label>
+                <label style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px', 
+                  fontSize: '12px', 
+                  color: '#888',
+                  cursor: 'pointer'
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={newModelForm.supportsStreaming ?? true}
+                    onChange={e => setNewModelForm(prev => ({ ...prev, supportsStreaming: e.target.checked }))}
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      accentColor: '#FF00FF',
+                      cursor: 'pointer'
+                    }}
+                  />
+                  Supports Streaming
+                </label>
+              </div>
+            </div>
+            
+            {/* Actions */}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              marginTop: '24px',
+              justifyContent: 'flex-end'
+            }}>
+              <button
+                onClick={() => {
+                  setShowAddModelModal(false)
+                  setEditingModel(null)
+                  setNewModelForm({
+                    name: '',
+                    provider: '',
+                    apiEndpoint: '',
+                    apiKey: '',
+                    description: '',
+                    maxContextLength: 8192,
+                    supportsVision: false,
+                    supportsStreaming: true
+                  })
+                }}
+                style={{
+                  padding: '10px 20px',
+                  background: 'transparent',
+                  border: '1px solid #2a2a2a',
+                  borderRadius: '6px',
+                  color: '#888',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s'
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = '#444'
+                  e.currentTarget.style.color = '#aaa'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = '#2a2a2a'
+                  e.currentTarget.style.color = '#888'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddCustomModel}
+                disabled={!newModelForm.name || !newModelForm.provider || !newModelForm.apiEndpoint}
+                style={{
+                  padding: '10px 20px',
+                  background: (!newModelForm.name || !newModelForm.provider || !newModelForm.apiEndpoint) 
+                    ? '#333' 
+                    : '#FF00FF',
+                  border: 'none',
+                  borderRadius: '6px',
+                  color: (!newModelForm.name || !newModelForm.provider || !newModelForm.apiEndpoint) 
+                    ? '#666' 
+                    : '#fff',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  cursor: (!newModelForm.name || !newModelForm.provider || !newModelForm.apiEndpoint) 
+                    ? 'not-allowed' 
+                    : 'pointer',
+                  transition: 'all 0.15s'
+                }}
+              >
+                {editingModel ? 'Save Changes' : 'Add Model'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Messages Area */}
       <div style={{
@@ -855,19 +1441,23 @@ export default function AssistantPanel({ width = 480 }: AssistantPanelProps) {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '4px',
-                  padding: '4px 8px',
-                  background: 'transparent',
-                  border: '1px solid #2a2a2a',
+                  gap: '6px',
+                  padding: '4px 10px',
+                  background: showAgentDropdown ? 'rgba(255,0,255,0.1)' : 'transparent',
+                  border: '1px solid',
+                  borderColor: showAgentDropdown ? '#FF00FF' : '#2a2a2a',
                   borderRadius: '4px',
                   cursor: 'pointer',
-                  fontSize: '12px',
-                  color: '#888',
-                  transition: 'all 0.15s'
+                  fontSize: '11px',
+                  color: showAgentDropdown ? '#FF00FF' : '#888',
+                  transition: 'all 0.15s',
+                  fontWeight: 500
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = '#FF00FF'
-                  e.currentTarget.style.color = '#FF00FF'
+                  if (!showAgentDropdown) {
+                    e.currentTarget.style.borderColor = '#444'
+                    e.currentTarget.style.color = '#aaa'
+                  }
                 }}
                 onMouseLeave={(e) => {
                   if (!showAgentDropdown) {
@@ -876,9 +1466,12 @@ export default function AssistantPanel({ width = 480 }: AssistantPanelProps) {
                   }
                 }}
               >
-                <Logo size={14} variant="icon" />
+                <Logo size={12} variant="icon" />
                 <span>{currentAgent.name}</span>
-                <ChevronDown size={12} style={{ color: '#555' }} />
+                <ChevronDown size={10} style={{ 
+                  transform: showAgentDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.15s'
+                }} />
               </button>
 
               {showAgentDropdown && (
@@ -886,13 +1479,13 @@ export default function AssistantPanel({ width = 480 }: AssistantPanelProps) {
                   position: 'absolute',
                   bottom: '100%',
                   left: 0,
-                  background: '#1a1a1a',
+                  background: '#151515',
                   border: '1px solid #2a2a2a',
                   borderRadius: '6px',
-                  padding: '4px',
-                  marginBottom: '4px',
-                  minWidth: '180px',
-                  boxShadow: '0 -4px 20px rgba(0,0,0,0.3)',
+                  padding: '2px',
+                  marginBottom: '6px',
+                  minWidth: '200px',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
                   zIndex: 100
                 }}>
                   {AGENT_MODES.map((mode) => (
@@ -906,19 +1499,36 @@ export default function AssistantPanel({ width = 480 }: AssistantPanelProps) {
                         display: 'flex',
                         alignItems: 'center',
                         gap: '10px',
-                        padding: '8px 10px',
+                        padding: '6px 10px',
                         cursor: 'pointer',
                         borderRadius: '4px',
-                        background: mode.id === agentMode ? 'rgba(255,0,255,0.1)' : 'transparent'
+                        background: mode.id === agentMode ? 'rgba(255,0,255,0.15)' : 'transparent',
+                        borderLeft: mode.id === agentMode ? '2px solid #FF00FF' : '2px solid transparent',
+                        marginBottom: '1px'
                       }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,0,255,0.1)'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = mode.id === agentMode ? 'rgba(255,0,255,0.1)' : 'transparent'}
+                      onMouseEnter={(e) => {
+                        if (mode.id !== agentMode) {
+                          e.currentTarget.style.background = 'rgba(255,0,255,0.08)'
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = mode.id === agentMode ? 'rgba(255,0,255,0.15)' : 'transparent'
+                      }}
                     >
-                      <span style={{ color: mode.id === agentMode ? '#FF00FF' : '#666' }}>{mode.icon}</span>
-                      <div>
-                        <div style={{ fontSize: '12px', color: mode.id === agentMode ? '#FF00FF' : '#ccc' }}>{mode.name}</div>
-                        <div style={{ fontSize: '10px', color: '#555' }}>{mode.description}</div>
+                      <span style={{ color: mode.id === agentMode ? '#FF00FF' : '#888' }}>{mode.icon}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ 
+                          fontSize: '12px', 
+                          color: mode.id === agentMode ? '#FF00FF' : '#ddd',
+                          fontWeight: mode.id === agentMode ? 500 : 400
+                        }}>
+                          {mode.name}
+                        </div>
+                        <div style={{ fontSize: '10px', color: '#777', marginTop: '2px' }}>
+                          {mode.description}
+                        </div>
                       </div>
+                      {mode.id === agentMode && <Check size={12} style={{ color: '#FF00FF' }} />}
                     </div>
                   ))}
                 </div>
@@ -935,20 +1545,37 @@ export default function AssistantPanel({ width = 480 }: AssistantPanelProps) {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '4px',
-                  padding: '4px 8px',
-                  background: 'transparent',
-                  border: 'none',
+                  gap: '6px',
+                  padding: '4px 10px',
+                  background: showModelDropdown ? 'rgba(255,0,255,0.1)' : 'transparent',
+                  border: '1px solid',
+                  borderColor: showModelDropdown ? '#FF00FF' : '#2a2a2a',
                   borderRadius: '4px',
                   cursor: 'pointer',
-                  fontSize: '12px',
-                  color: '#666'
+                  fontSize: '11px',
+                  color: showModelDropdown ? '#FF00FF' : '#888',
+                  transition: 'all 0.15s',
+                  fontWeight: 500
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.color = '#ccc'}
-                onMouseLeave={(e) => e.currentTarget.style.color = '#666'}
+                onMouseEnter={(e) => {
+                  if (!showModelDropdown) {
+                    e.currentTarget.style.borderColor = '#444'
+                    e.currentTarget.style.color = '#aaa'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!showModelDropdown) {
+                    e.currentTarget.style.borderColor = '#2a2a2a'
+                    e.currentTarget.style.color = '#888'
+                  }
+                }}
               >
                 <span>{currentModel.name}</span>
-                <ChevronDown size={12} />
+                {modelsLoading && <Loader2 size={10} style={{ animation: 'spin 1s linear infinite' }} />}
+                <ChevronDown size={10} style={{ 
+                  transform: showModelDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.15s'
+                }} />
               </button>
 
               {showModelDropdown && (
@@ -956,35 +1583,334 @@ export default function AssistantPanel({ width = 480 }: AssistantPanelProps) {
                   position: 'absolute',
                   bottom: '100%',
                   left: 0,
-                  background: '#1a1a1a',
+                  background: '#151515',
                   border: '1px solid #2a2a2a',
                   borderRadius: '6px',
-                  padding: '4px',
-                  marginBottom: '4px',
-                  minWidth: '200px',
-                  boxShadow: '0 -4px 20px rgba(0,0,0,0.3)',
+                  padding: '2px',
+                  marginBottom: '6px',
+                  minWidth: '280px',
+                  maxWidth: '320px',
+                  maxHeight: '500px',
+                  overflowY: 'auto',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
                   zIndex: 100
                 }}>
-                  {MODELS.map((m) => (
-                    <div
-                      key={m.id}
-                      onClick={() => {
-                        setModel(m.id)
-                        setShowModelDropdown(false)
-                      }}
-                      style={{
-                        padding: '8px 10px',
-                        cursor: 'pointer',
-                        borderRadius: '4px',
-                        background: m.id === model ? 'rgba(255,0,255,0.1)' : 'transparent'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,0,255,0.1)'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = m.id === model ? 'rgba(255,0,255,0.1)' : 'transparent'}
-                    >
-                      <div style={{ fontSize: '12px', color: m.id === model ? '#FF00FF' : '#ccc' }}>{m.name}</div>
-                      <div style={{ fontSize: '10px', color: '#555' }}>{m.description}</div>
+                  {modelsLoading ? (
+                    <div style={{ 
+                      padding: '16px', 
+                      textAlign: 'center', 
+                      color: '#666',
+                      fontSize: '11px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px'
+                    }}>
+                      <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                      Loading models...
                     </div>
-                  ))}
+                  ) : (
+                    <>
+                      {/* Auto option - always first */}
+                      {modelsList.filter(m => m.id === 'auto').map((m) => (
+                        <div
+                          key={m.id}
+                          onClick={() => {
+                            setModel(m.id)
+                            setShowModelDropdown(false)
+                          }}
+                          style={{
+                            padding: '6px 10px',
+                            cursor: 'pointer',
+                            borderRadius: '4px',
+                            background: m.id === model ? 'rgba(255,0,255,0.15)' : 'transparent',
+                            borderLeft: m.id === model ? '2px solid #FF00FF' : '2px solid transparent',
+                            marginBottom: '2px'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (m.id !== model) {
+                              e.currentTarget.style.background = 'rgba(255,0,255,0.08)'
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = m.id === model ? 'rgba(255,0,255,0.15)' : 'transparent'
+                          }}
+                        >
+                          <div style={{ 
+                            fontSize: '12px', 
+                            color: m.id === model ? '#FF00FF' : '#ddd',
+                            fontWeight: m.id === model ? 500 : 400,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}>
+                            {m.id === model && <Check size={12} style={{ color: '#FF00FF' }} />}
+                            <span>{m.name}</span>
+                          </div>
+                          <div style={{ fontSize: '10px', color: '#777', marginTop: '2px', marginLeft: m.id === model ? '18px' : '0' }}>
+                            {m.description}
+                          </div>
+                        </div>
+                      ))}
+                      
+                      {/* Divider */}
+                      {modelsList.filter(m => m.id !== 'auto').length > 0 && (
+                        <div style={{
+                          height: '1px',
+                          background: '#2a2a2a',
+                          margin: '4px 8px'
+                        }} />
+                      )}
+                      
+                      {/* Available models */}
+                      {modelsList.filter(m => m.id !== 'auto' && m.available).map((m) => (
+                        <div
+                          key={m.id}
+                          onClick={() => {
+                            setModel(m.id)
+                            setShowModelDropdown(false)
+                          }}
+                          style={{
+                            padding: '6px 10px',
+                            cursor: 'pointer',
+                            borderRadius: '4px',
+                            background: m.id === model ? 'rgba(255,0,255,0.15)' : 'transparent',
+                            borderLeft: m.id === model ? '2px solid #FF00FF' : '2px solid transparent',
+                            marginBottom: '1px'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (m.id !== model) {
+                              e.currentTarget.style.background = 'rgba(255,0,255,0.08)'
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = m.id === model ? 'rgba(255,0,255,0.15)' : 'transparent'
+                          }}
+                        >
+                          <div style={{ 
+                            fontSize: '12px', 
+                            color: m.id === model ? '#FF00FF' : '#ddd',
+                            fontWeight: m.id === model ? 500 : 400,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}>
+                            {m.id === model && <Check size={12} style={{ color: '#FF00FF' }} />}
+                            <span>{m.name}</span>
+                          </div>
+                          <div style={{ fontSize: '10px', color: '#777', marginTop: '2px', marginLeft: m.id === model ? '18px' : '0' }}>
+                            {m.description}
+                          </div>
+                        </div>
+                      ))}
+                      
+                      {/* Custom Models Section */}
+                      {customModelsList.length > 0 && (
+                        <>
+                          <div style={{
+                            height: '1px',
+                            background: '#2a2a2a',
+                            margin: '6px 8px'
+                          }} />
+                          <div style={{
+                            padding: '6px 10px',
+                            fontSize: '10px',
+                            color: '#22c55e',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                            fontWeight: 600,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}>
+                            <Plus size={10} />
+                            Custom Models
+                          </div>
+                          {customModelsList.map((m) => (
+                            <div
+                              key={m.id}
+                              style={{
+                                padding: '6px 10px',
+                                cursor: 'pointer',
+                                borderRadius: '4px',
+                                background: m.id === model ? 'rgba(34,197,94,0.15)' : 'transparent',
+                                borderLeft: m.id === model ? '2px solid #22c55e' : '2px solid transparent',
+                                marginBottom: '1px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between'
+                              }}
+                              onMouseEnter={(e) => {
+                                if (m.id !== model) {
+                                  e.currentTarget.style.background = 'rgba(34,197,94,0.08)'
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = m.id === model ? 'rgba(34,197,94,0.15)' : 'transparent'
+                              }}
+                            >
+                              <div 
+                                style={{ flex: 1 }}
+                                onClick={() => {
+                                  setModel(m.id)
+                                  setShowModelDropdown(false)
+                                }}
+                              >
+                                <div style={{ 
+                                  fontSize: '12px', 
+                                  color: m.id === model ? '#22c55e' : '#ddd',
+                                  fontWeight: m.id === model ? 500 : 400,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px'
+                                }}>
+                                  {m.id === model && <Check size={12} style={{ color: '#22c55e' }} />}
+                                  <span>{m.name}</span>
+                                  <span style={{ 
+                                    fontSize: '9px', 
+                                    background: 'rgba(34,197,94,0.2)', 
+                                    color: '#22c55e',
+                                    padding: '1px 4px',
+                                    borderRadius: '3px'
+                                  }}>
+                                    {m.provider}
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: '10px', color: '#777', marginTop: '2px', marginLeft: m.id === model ? '18px' : '0' }}>
+                                  {m.description}
+                                </div>
+                              </div>
+                              {/* Edit and Delete buttons */}
+                              <div style={{ display: 'flex', gap: '4px' }}>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    const customModel = customModels.find(cm => cm.id === m.id)
+                                    if (customModel) handleEditCustomModel(customModel)
+                                  }}
+                                  style={{
+                                    background: 'transparent',
+                                    border: 'none',
+                                    color: '#666',
+                                    cursor: 'pointer',
+                                    padding: '4px',
+                                    borderRadius: '4px',
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                  }}
+                                  onMouseEnter={(e) => e.currentTarget.style.color = '#22c55e'}
+                                  onMouseLeave={(e) => e.currentTarget.style.color = '#666'}
+                                  title="Edit model"
+                                >
+                                  <Settings size={12} />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleDeleteCustomModel(m.id)
+                                  }}
+                                  style={{
+                                    background: 'transparent',
+                                    border: 'none',
+                                    color: '#666',
+                                    cursor: 'pointer',
+                                    padding: '4px',
+                                    borderRadius: '4px',
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                  }}
+                                  onMouseEnter={(e) => e.currentTarget.style.color = '#ef4444'}
+                                  onMouseLeave={(e) => e.currentTarget.style.color = '#666'}
+                                  title="Delete model"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </>
+                      )}
+                      
+                      {/* Add Custom Model Button */}
+                      <div style={{
+                        height: '1px',
+                        background: '#2a2a2a',
+                        margin: '6px 8px'
+                      }} />
+                      <button
+                        onClick={() => {
+                          setShowModelDropdown(false)
+                          setShowAddModelModal(true)
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px',
+                          background: 'transparent',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          fontSize: '12px',
+                          color: '#888',
+                          transition: 'all 0.15s'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'rgba(34,197,94,0.1)'
+                          e.currentTarget.style.color = '#22c55e'
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'transparent'
+                          e.currentTarget.style.color = '#888'
+                        }}
+                      >
+                        <Plus size={14} />
+                        Add Custom Model
+                      </button>
+                      
+                      {/* Unavailable models - collapsed section */}
+                      {modelsList.filter(m => m.id !== 'auto' && !m.available).length > 0 && (
+                        <>
+                          <div style={{
+                            height: '1px',
+                            background: '#2a2a2a',
+                            margin: '6px 8px'
+                          }} />
+                          <div style={{
+                            padding: '6px 10px',
+                            fontSize: '10px',
+                            color: '#555',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                            fontWeight: 600
+                          }}>
+                            Not Configured
+                          </div>
+                          {modelsList.filter(m => m.id !== 'auto' && !m.available).map((m) => (
+                            <div
+                              key={m.id}
+                              style={{
+                                padding: '5px 10px 5px 20px',
+                                cursor: 'not-allowed',
+                                borderRadius: '4px',
+                                opacity: 0.4,
+                                fontSize: '11px',
+                                color: '#666'
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span>{m.name}</span>
+                              </div>
+                              <div style={{ fontSize: '9px', color: '#555', marginTop: '1px' }}>
+                                {m.description}
+                              </div>
+                            </div>
+                          ))}
+                        </>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
             </div>
