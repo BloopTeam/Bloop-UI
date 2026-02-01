@@ -7,8 +7,14 @@ import StatusBar from './components/StatusBar'
 import CommandPalette from './components/CommandPalette'
 import BeginnerGuide from './components/BeginnerGuide'
 import ResizeHandle from './components/ResizeHandle'
-import Toast, { ToastMessage, ToastAction } from './components/Toast'
+import Toast, { ToastMessage } from './components/Toast'
 import TerminalPanel from './components/TerminalPanel'
+import OpenClawPanel from './components/OpenClawPanel'
+import MoltbookPanel from './components/MoltbookPanel'
+import { openClawService } from './services/openclaw'
+
+// Right panel modes
+type RightPanelMode = 'assistant' | 'openclaw' | 'moltbook'
 
 export default function App() {
   const [showCommandPalette, setShowCommandPalette] = useState(false)
@@ -16,6 +22,7 @@ export default function App() {
   const [assistantCollapsed, setAssistantCollapsed] = useState(false)
   const [terminalVisible, setTerminalVisible] = useState(false)
   const [toasts, setToasts] = useState<ToastMessage[]>([])
+  const [rightPanelMode, setRightPanelMode] = useState<RightPanelMode>('assistant')
   const [doNotDisturb, setDoNotDisturb] = useState(false)
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [showNotificationHistory, setShowNotificationHistory] = useState(false)
@@ -23,17 +30,17 @@ export default function App() {
   // Load panel widths from localStorage or use defaults
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem('bloop-sidebar-width')
-    return saved ? parseInt(saved, 10) : 320
+    return saved ? Number.parseInt(saved, 10) : 320
   })
   
   const [assistantWidth, setAssistantWidth] = useState(() => {
     const saved = localStorage.getItem('bloop-assistant-width')
-    return saved ? parseInt(saved, 10) : 480
+    return saved ? Number.parseInt(saved, 10) : 480
   })
 
   const [terminalHeight, setTerminalHeight] = useState(() => {
     const saved = localStorage.getItem('bloop-terminal-height')
-    return saved ? parseInt(saved, 10) : 200
+    return saved ? Number.parseInt(saved, 10) : 200
   })
 
   // Toast functions
@@ -161,7 +168,84 @@ export default function App() {
           {!assistantCollapsed && (
             <>
               <ResizeHandle onResize={handleAssistantResize} direction="horizontal" />
-              <AssistantPanel onCollapse={() => setAssistantCollapsed(true)} width={assistantWidth} />
+              <div style={{ 
+                width: `${assistantWidth}px`, 
+                display: 'flex', 
+                flexDirection: 'column',
+                background: '#1e1e1e',
+                borderLeft: '1px solid #3c3c3c'
+              }}>
+                {/* Panel Tabs */}
+                <div style={{
+                  display: 'flex',
+                  borderBottom: '1px solid #1a1a1a'
+                }}>
+                  <button
+                    onClick={() => setRightPanelMode('assistant')}
+                    style={{
+                      flex: 1,
+                      padding: '8px 16px',
+                      background: 'transparent',
+                      border: 'none',
+                      borderBottom: rightPanelMode === 'assistant' ? '1px solid #cccccc' : '1px solid transparent',
+                      color: rightPanelMode === 'assistant' ? '#cccccc' : '#666',
+                      cursor: 'pointer',
+                      fontSize: '12px'
+                    }}
+                  >
+                    Assistant
+                  </button>
+                  <button
+                    onClick={() => setRightPanelMode('openclaw')}
+                    style={{
+                      flex: 1,
+                      padding: '8px 16px',
+                      background: 'transparent',
+                      border: 'none',
+                      borderBottom: rightPanelMode === 'openclaw' ? '1px solid #cccccc' : '1px solid transparent',
+                      color: rightPanelMode === 'openclaw' ? '#cccccc' : '#666',
+                      cursor: 'pointer',
+                      fontSize: '12px'
+                    }}
+                  >
+                    OpenClaw
+                  </button>
+                  <button
+                    onClick={() => setRightPanelMode('moltbook')}
+                    style={{
+                      flex: 1,
+                      padding: '8px 16px',
+                      background: 'transparent',
+                      border: 'none',
+                      borderBottom: rightPanelMode === 'moltbook' ? '1px solid #cccccc' : '1px solid transparent',
+                      color: rightPanelMode === 'moltbook' ? '#cccccc' : '#666',
+                      cursor: 'pointer',
+                      fontSize: '12px'
+                    }}
+                  >
+                    Moltbook
+                  </button>
+                </div>
+                
+                {/* Panel Content */}
+                <div style={{ flex: 1, overflow: 'hidden' }}>
+                  {rightPanelMode === 'assistant' && (
+                    <AssistantPanel onCollapse={() => setAssistantCollapsed(true)} width={assistantWidth} />
+                  )}
+                  {rightPanelMode === 'openclaw' && (
+                    <OpenClawPanel onClose={() => setRightPanelMode('assistant')} />
+                  )}
+                  {rightPanelMode === 'moltbook' && (
+                    <MoltbookPanel 
+                      onClose={() => setRightPanelMode('assistant')}
+                      onInstallSkill={(skillMd, name) => {
+                        openClawService.installSkill(skillMd, name)
+                        addToast('success', `Skill "${name}" installed successfully`)
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
             </>
           )}
         </div>
